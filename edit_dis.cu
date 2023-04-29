@@ -222,6 +222,7 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
     // initializing variables
     __shared__ CyclicBuffer <2 * THREADS_PER_BLOCK, int> samplesBuffer;
     samplesBuffer.reset();  // resets the buffer
+    
     __shared__ int min_distance;
     __shared__ int minIdx;
     __shared__ int count;
