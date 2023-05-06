@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <string.h>
 
 struct Histogram{
     unsigned char numA;
@@ -43,6 +44,7 @@ struct DynamicVector{
     __device__ void init(){
 
         first_node = (DynamicVectorBlock*) malloc(sizeof(DynamicVectorBlock));
+        first_node->next = nullptr;
         last_node = first_node;
         n = 0;
         lock = 0;
@@ -57,6 +59,7 @@ struct DynamicVector{
         if (n == 32){
             last_node->next = (DynamicVectorBlock*) malloc(sizeof(DynamicVectorBlock));
             last_node = last_node->next;
+            last_node->next = nullptr;
         }
         atomicExch(&lock,0);
 
@@ -202,10 +205,18 @@ struct CyclicBuffer{
     }
 };
 
+__global__ void resetIndexTable(DynamicVector *index_table){
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    printf("hi\n");
+    if (index < std::pow(4,K)){
+        index_table[index].init();
+    }
+}
+
 __global__ void computeIndexTable(const char *reads, DynamicVector *index_table){// also might be a situation in which there will be the same read twice in one index in the index_table
     __shared__ char read[N];
 
-    index_table.init();// how? perhaps make a check in push add a kerenel to init
+//    index_table.init();// how? perhaps make a check in push add a kerenel to init
     if (threadIdx.x == 0){
         for (int i = 0; i < N; i++) read[i] = reads[(N * blockIdx.x) + i];
     }
@@ -315,6 +326,7 @@ int main(){
 //    Histogram *histograms = (Histogram*) malloc(NUM_READS * sizeof(Histogram));
     Histogram *d_histograms; cudaMalloc(&d_histograms, NUM_READS * sizeof(Histogram));
 
+    DynamicVector *index_table = (DynamicVector*) malloc(std::pow(4,K) * sizeof(DynamicVector));
     DynamicVector *d_index_table; cudaMalloc(&d_index_table, std::pow(4,K) * sizeof(DynamicVector));
     // will be a list of the minimum edit distance for each read
     int *min_num = (int*) malloc(NUM_READS * sizeof(int));
@@ -324,7 +336,32 @@ int main(){
     int *min_index = (int*) malloc(NUM_READS * sizeof(int));
     int *d_min_index; cudaMalloc(&d_min_index, NUM_READS * sizeof(int));
 
+    resetIndexTable<<<std::pow(4,K)/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_index_table);
+    cudaDeviceSynchronize();
     computeIndexTable<<<NUM_READS,THREADS_PER_BLOCK>>>(d_reads,d_index_table);
+
+    cudaMemcpy(index_table, d_index_table, std::pow(4,K) * sizeof(DynamicVector), cudaMemcpyDeviceToHost);
+    std::cout << std::pow(4,K)/THREADS_PER_BLOCK << std::endl;
+    for (int i = 0; i < std::pow(4,K); i++){
+
+        DynamicVectorBlock *current_node = index_table[i].first_node;
+        bool printed = false;
+        while (current_node != nullptr){
+            std::cout << 1 ;
+            DynamicVectorBlock temp;
+            cudaMemcpy(&temp,current_node,sizeof(DynamicVectorBlock),cudaMemcpyDeviceToHost);
+            int n = (temp.next == nullptr)? index_table[i].n : THREADS_PER_BLOCK;
+            for (int j = 0; j < n; j++){
+                std::cout << temp.x[j] << ", ";
+                printed = true;
+            }
+            current_node = temp.next;
+        }
+        if (printed){
+            std::cout << std::endl;
+        }
+
+    }
 
     computeHistogram<<<NUM_READS/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads,d_histograms);
 
@@ -340,9 +377,9 @@ int main(){
     cudaMemcpy(min_num, d_min_num, NUM_READS * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(min_index, d_min_index, NUM_READS * sizeof(int), cudaMemcpyDeviceToHost);
 
-    std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
-    for(int i = 0; i < NUM_READS; i++){
-        std::cout << i << ","<< min_index[i]<< ","<< min_num[i] << std::endl;
-    }
+//    std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
+//    for(int i = 0; i < NUM_READS; i++){
+//        std::cout << i << ","<< min_index[i]<< ","<< min_num[i] << std::endl;
+//    }
     return 0;
 }
