@@ -9,63 +9,6 @@ struct Histogram{
     unsigned char numG;
 };
 
-struct DynamicVectorBlock{
-    /**
-     * List of elemneקts
-     */
-    int x[32];
-    /**
-     * A pointer to the next node
-     */
-    DynamicVectorBlock *next;
-};
-
-struct DynamicVector{
-    /**
-     * A pointer to the first node of the linked vector
-     */
-    DynamicVectorBlock *first_node;
-    /**
-     * A pointer to the last node of the linked vector
-     */
-    DynamicVectorBlock *last_node;
-    /**
-     * The number of elements in the last node
-     */
-    int n;
-    /**
-     * If a thread is using the push method it would be true
-     */
-    int lock;
-
-    /**
-     * resets the vector
-     */
-    __device__ void init(){
-
-        first_node = (DynamicVectorBlock*) malloc(sizeof(DynamicVectorBlock));
-        first_node->next = nullptr;
-        last_node = first_node;
-        n = 0;
-        lock = 0;
-    }
-    /**
-     * Add an element to the end of the vector
-     * @param element
-     */
-    __device__ void push(int element){
-        while (atomicExch(&lock,1)){}// wait until a thread is done
-        last_node->x[atomicAdd(&n, 1)] = element;
-        if (n == 32){
-            last_node->next = (DynamicVectorBlock*) malloc(sizeof(DynamicVectorBlock));
-            last_node = last_node->next;
-            last_node->next = nullptr;
-        }
-        atomicExch(&lock,0);
-
-    }
-};
-
 const int NUM_READS = 256;
 const int N = 256;
 const int THREADS_PER_BLOCK = 32;
@@ -205,28 +148,7 @@ struct CyclicBuffer{
     }
 };
 
-__global__ void resetIndexTable(DynamicVector *index_table){
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    printf("hi\n");
-    if (index < std::pow(4,K)){
-        index_table[index].init();
-    }
-}
 
-__global__ void computeIndexTable(const char *reads, DynamicVector *index_table){// also might be a situation in which there will be the same read twice in one index in the index_table
-    __shared__ char read[N];
-
-//    index_table.init();// how? perhaps make a check in push add a kerenel to init
-    if (threadIdx.x == 0){
-        for (int i = 0; i < N; i++) read[i] = reads[(N * blockIdx.x) + i];
-    }
-    for(int i = threadIdx.x; i <= N - K; i +=THREADS_PER_BLOCK){
-        char kmer[K];
-        for (int j = 0; j < K; j++) kmer[j] = read[j+i];
-        index_table[dnaToDecimal(kmer)].push(blockIdx.x);
-    }
-    __syncthreads();
-}
 
 __global__ void findClosest(const char *reads, int *min_num, int *min_index, Histogram *histograms){
 
@@ -336,40 +258,11 @@ int main(){
     int *min_index = (int*) malloc(NUM_READS * sizeof(int));
     int *d_min_index; cudaMalloc(&d_min_index, NUM_READS * sizeof(int));
 
-    resetIndexTable<<<std::pow(4,K)/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_index_table);
-    cudaDeviceSynchronize();
-    computeIndexTable<<<NUM_READS,THREADS_PER_BLOCK>>>(d_reads,d_index_table);
+//    int *d_read_counts; cudaMalloc(&d_read_counts, std::pow(4,K) * sizeof(int));
 
-    cudaMemcpy(index_table, d_index_table, std::pow(4,K) * sizeof(DynamicVector), cudaMemcpyDeviceToHost);
-    std::cout << std::pow(4,K)/THREADS_PER_BLOCK << std::endl;
-    for (int i = 0; i < std::pow(4,K); i++){
-
-        DynamicVectorBlock *current_node = index_table[i].first_node;
-        bool printed = false;
-        while (current_node != nullptr){
-            std::cout << 1 ;
-            DynamicVectorBlock temp;
-            cudaMemcpy(&temp,current_node,sizeof(DynamicVectorBlock),cudaMemcpyDeviceToHost);
-            int n = (temp.next == nullptr)? index_table[i].n : THREADS_PER_BLOCK;
-            for (int j = 0; j < n; j++){
-                std::cout << temp.x[j] << ", ";
-                printed = true;
-            }
-            current_node = temp.next;
-        }
-        if (printed){
-            std::cout << std::endl;
-        }
-
-    }
 
     computeHistogram<<<NUM_READS/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads,d_histograms);
 
-//    cudaMemcpy(histograms, d_histograms, NUM_READS * sizeof(Histogram), cudaMemcpyDeviceToHost);
-
-//    for(int i = 0; i < NUM_READS; i++){
-//        std::cout << (int)histograms[i].numA << "," << (int)histograms[i].numT << "," <<(int)histograms[i].numG << "," << (int)histograms[i].numC << std::endl;
-//    }
 
     findClosest<<<NUM_READS,THREADS_PER_BLOCK>>>(d_reads,d_min_num, d_min_index, d_histograms);
 
@@ -377,9 +270,10 @@ int main(){
     cudaMemcpy(min_num, d_min_num, NUM_READS * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(min_index, d_min_index, NUM_READS * sizeof(int), cudaMemcpyDeviceToHost);
 
-//    std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
-//    for(int i = 0; i < NUM_READS; i++){
-//        std::cout << i << ","<< min_index[i]<< ","<< min_num[i] << std::endl;
-//    }
+    std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
+    for(int i = 0; i < NUM_READS; i++){
+        std::cout << i << ","<< min_index[i]<< ","<< min_num[i] << std::endl;
+    }
+
     return 0;
 }
