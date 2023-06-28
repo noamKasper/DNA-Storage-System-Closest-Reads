@@ -1,6 +1,10 @@
 #include <iostream>
 #include <cmath>
 #include <string.h>
+#include <thrust/scan.h>
+#include <thrust/reduce.h>
+#include <thrust/device_ptr.h>
+#include <thrust/execution_policy.h>
 
 struct Histogram{
     unsigned char numA;
@@ -82,6 +86,36 @@ __global__ void computeHistogram(const char *reads,Histogram *histograms){
     }
     
 }
+
+__global__ void computeReadCounts(const char *reads, int *read_counts){
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    for (int i = 0; i <= N - K; i++){
+        char kmer[K];
+        for (int j = 0; j < K; j++) kmer[j] = reads[(N * index)+j+i];
+        atomicAdd(&read_counts[dnaToDecimal(kmer)], 1);
+//        printf("%d: %d\n",dnaToDecimal(kmer),(value+1));
+
+    }
+    __syncthreads();
+}
+
+__global__ void computeIndexTable(const char *reads, int *read_counts, int *tmp_read_counts, int *index_table, int *prefix,int *kmers){
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    for (int i = 0; i <= N - K; i++){
+        char kmer[K];
+        for (int j = 0; j < K; j++) kmer[j] = reads[(N * index)+j+i];
+        int value = atomicAdd(&tmp_read_counts[dnaToDecimal(kmer)], 1);
+        int loc = prefix[dnaToDecimal(kmer)] + value - read_counts[dnaToDecimal(kmer)];
+        index_table[loc] = index;
+        kmers[loc] = dnaToDecimal(kmer);
+    }
+    __syncthreads();
+
+
+
+
+}
+
 template <unsigned int n, typename T>
 /**
  * A cyclic buffer of size n
@@ -248,8 +282,6 @@ int main(){
 //    Histogram *histograms = (Histogram*) malloc(NUM_READS * sizeof(Histogram));
     Histogram *d_histograms; cudaMalloc(&d_histograms, NUM_READS * sizeof(Histogram));
 
-    DynamicVector *index_table = (DynamicVector*) malloc(std::pow(4,K) * sizeof(DynamicVector));
-    DynamicVector *d_index_table; cudaMalloc(&d_index_table, std::pow(4,K) * sizeof(DynamicVector));
     // will be a list of the minimum edit distance for each read
     int *min_num = (int*) malloc(NUM_READS * sizeof(int));
     int *d_min_num; cudaMalloc(&d_min_num, NUM_READS * sizeof(int));
@@ -258,14 +290,41 @@ int main(){
     int *min_index = (int*) malloc(NUM_READS * sizeof(int));
     int *d_min_index; cudaMalloc(&d_min_index, NUM_READS * sizeof(int));
 
-//    int *d_read_counts; cudaMalloc(&d_read_counts, std::pow(4,K) * sizeof(int));
+    int *read_counts = (int*) malloc(std::pow(4,K) * sizeof(int));
+    int *d_read_counts; cudaMalloc(&d_read_counts, std::pow(4,K) * sizeof(int)); cudaMemset(d_read_counts, 0, std::pow(4,K) * sizeof(int));
+    int *read_prefix = (int*) malloc(std::pow(4,K) * sizeof(int));
+    int *d_read_prefix; cudaMalloc(&d_read_prefix, std::pow(4,K) * sizeof(int));
 
+    thrust::device_ptr<int> dev_ptr(d_read_counts);
 
     computeHistogram<<<NUM_READS/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads,d_histograms);
 
+    computeReadCounts<<<NUM_READS/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads, d_read_counts);
+
+    int read_counts_sum = thrust::reduce(thrust::device, dev_ptr, dev_ptr + std::pow(4,K),0);// sum read_counts
+    thrust::inclusive_scan(thrust::device, dev_ptr, dev_ptr + std::pow(4,K), d_read_prefix);// create a prefix of read_counts
+
+    int *d_index_table; cudaMalloc(&d_index_table, read_counts_sum * sizeof(int));// create index table with the length of the sum of read_counts
+    int *index_table = (int*) malloc(read_counts_sum * sizeof(int));
+    int *d_index_table_kmers; cudaMalloc(&d_index_table_kmers, read_counts_sum * sizeof(int));
+    int *index_table_kmers = (int*) malloc(read_counts_sum * sizeof(int));
+    int *d_tmp_read_counts; cudaMalloc(&d_tmp_read_counts, std::pow(4,K) * sizeof(int)); cudaMemset(d_tmp_read_counts, 0, std::pow(4,K) * sizeof(int));
+
+    computeIndexTable<<<NUM_READS/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads, d_read_counts, d_tmp_read_counts, d_index_table, d_read_prefix, d_index_table_kmers);
 
     findClosest<<<NUM_READS,THREADS_PER_BLOCK>>>(d_reads,d_min_num, d_min_index, d_histograms);
 
+    cudaMemcpy(index_table_kmers, d_index_table_kmers, read_counts_sum * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(index_table, d_index_table, read_counts_sum * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(read_counts, d_read_counts, std::pow(4,K) * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(read_prefix, d_read_prefix, std::pow(4,K) * sizeof(int), cudaMemcpyDeviceToHost);
+
+    std::cout << "kmer" << ","<< "read" << ","<< "read counts" << ",read prefix"<< std::endl;
+    for(int i = 0; i < read_counts_sum; i++){
+
+        std::cout << index_table_kmers[i] << ","<< index_table[i] << ","<< read_counts[index_table_kmers[i]]<< ","<< read_prefix[index_table_kmers[i]] << std::endl;
+
+    }
 
     cudaMemcpy(min_num, d_min_num, NUM_READS * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(min_index, d_min_index, NUM_READS * sizeof(int), cudaMemcpyDeviceToHost);
