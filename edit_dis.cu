@@ -18,109 +18,6 @@ struct IndexTable{
     int count;
 };
 
-
-const int N = 115;
-const int THREADS_PER_BLOCK = 32;
-const int ETH = 200;
-const int K = 12;
-
-__device__ int editDistance(const char* s, const char* t){
-
-    // The last row
-    int arr[N + 1];
-
-    // Initialize arr to be the first row of the DP matrix
-    for(int j = 0; j <= N; j++){
-        arr[j] = j;
-    }
-
-    // Fill the remaining rows
-    for(int i = 1; i <= N; i++){
-    
-        int diag = arr[0];
-        arr[0] = i;
-
-        for(int j = 1; j <= N; j++){
-
-            int new_val = min(diag + (s[i - 1] != t[j - 1]), min(arr[j] + (s[i-1] != 'P'), arr[j - 1] + (t[i-1] != 'P')));
-            diag = arr[j];
-            arr[j] = new_val;
-
-        }
-
-    }
-
-    return arr[N];
-
-}
-
-//__device__ const char* decimalToDna(int num) {
-//
-//    // Stores DNA representation of number.
-//    char DnaNum[K];
-//    char DNA[5] = "ACGT";
-//
-//    for (int i = 0 ;i < K;i++ ){
-//        DnaNum[i] = DNA[num % 4];
-//        num /= 4;
-//    }
-//    return DnaNum;
-//}
-__constant__ int RHO[26] = {0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0};//possibilities
-__device__ int dnaToDecimal(const char* dnaSeq) {
-    int decimalNum = 0;
-    for (int i = K; i >= 0; i--) {
-        int nucleotideValue = RHO[dnaSeq[i] - 'A'];
-        decimalNum = decimalNum * 4 + nucleotideValue;
-    }
-    return decimalNum;
-}
-
-
-__global__ void computeHistogram(const char *reads,Histogram *histograms, int *num_reads){
-
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= *num_reads) return;
-    histograms[index].numA = 0;
-    histograms[index].numT = 0;
-    histograms[index].numG = 0;
-    histograms[index].numC = 0;
-    for(int i = 0; i < N; i++){
-        histograms[index].numA += (reads[index * N + i] == 'A');
-        histograms[index].numT += (reads[index * N + i] == 'T');
-        histograms[index].numG += (reads[index * N + i] == 'G');
-        histograms[index].numC += (reads[index * N + i] == 'C');
-    }
-    
-}
-
-__global__ void computeReadCounts(const char *reads, int *read_counts, int *num_reads){
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    if (index >= *num_reads) return;
-    for (int i = 0; i <= N - K; i++){
-        char kmer[K];
-        for (int j = 0; j < K; j++) kmer[j] = reads[(N * index)+j+i];
-        atomicAdd(&read_counts[dnaToDecimal(kmer)], 1);
-//        printf("%d: %d\n",dnaToDecimal(kmer),(value+1));
-
-    }
-}
-
-__global__ void computeIndexTable(const char *reads, int *read_counts, int *tmp_read_counts, int *read_chunk, int *prefix, IndexTable *index_table, int *num_reads){
-    int read = blockIdx.x * blockDim.x + threadIdx.x;
-    if (read >= *num_reads) return;
-    for (int i = 0; i <= N - K; i++){
-        char kmer[K];
-        for (int j = 0; j < K; j++) kmer[j] = reads[(N * read)+j+i];
-        int value = atomicAdd(&tmp_read_counts[dnaToDecimal(kmer)], 1);
-        int index = prefix[dnaToDecimal(kmer)] + value;
-        read_chunk[index] = read;
-        index_table[dnaToDecimal(kmer)].index = index;
-        index_table[dnaToDecimal(kmer)].count = read_counts[dnaToDecimal(kmer)];
-
-    }
-}
-
 template <unsigned int n, typename T>
 /**
  * A cyclic buffer of size n
@@ -187,106 +84,11 @@ struct CyclicBuffer{
     }
 };
 
-
-
-__global__ void findClosest(const char *reads, int *min_num, int *min_index, Histogram *histograms, IndexTable *index_table, int *read_chunk){
-
-    // initializing variables
-    __shared__ CyclicBuffer <2 * THREADS_PER_BLOCK, int> samplesBuffer;
-    samplesBuffer.reset();  // resets the buffer
-
-    __shared__ int min_distance;
-    __shared__ int minIdx;
-    __shared__ int count;
-    __shared__ char read[N];
-
-
-    //creates the main read in the memory:
-    if (threadIdx.x == 0) {
-        min_distance = N;
-        minIdx = -1;
-        for (int i = 0; i < N; i++) read[i] = reads[(N * blockIdx.x) + i];
-    }
-    __syncthreads();
-
-    for (int i = 0; i <= N - K; i++) {
-        char kmer[K];
-        for (int j = 0; j < K; j++) kmer[j] = read[j + i];
-        IndexTable kmer_reads = index_table[dnaToDecimal(kmer)];
-
-        for (int j = 0; j < kmer_reads.count; j += THREADS_PER_BLOCK) {
-//            printf("%d\n",kmer_reads.count);
-            if (j + threadIdx.x < kmer_reads.count) {
-            int comp_read = read_chunk[kmer_reads.index + j + threadIdx.x];
-            count = 0;
-                if (blockIdx.x != comp_read) {
-
-                    int length = samplesBuffer.length;  //enables to know the current length
-                    // Compute histogram diff between our read and read comp_read
-
-                    int diff = abs(histograms[blockIdx.x].numA - histograms[comp_read].numA) +
-                               abs(histograms[blockIdx.x].numT - histograms[comp_read].numT) +
-                               abs(histograms[blockIdx.x].numG - histograms[comp_read].numG) +
-                               abs(histograms[blockIdx.x].numC - histograms[comp_read].numC);
-                    // If diff < 2*ETH, add to samples buffer
-                    if (diff < 2 * ETH) {
-                        int readBufferIdx = atomicAdd(&count,
-                                                      1);  //if I did normal add it would be overwritten, returns count before add
-                        samplesBuffer.set(readBufferIdx + length, comp_read);
-                    }
-                }
-            }
-            __syncthreads();
-
-            if (threadIdx.x == 0) {
-
-                samplesBuffer.push(count);//enlarges the length of the buffer
-//                printf("%d, %d\n",samplesBuffer.length,count);
-            }
-            __syncthreads();
-
-            if (samplesBuffer.length >= THREADS_PER_BLOCK) {
-                int edit_distance = editDistance(read, (reads + N * (samplesBuffer.get(
-                        threadIdx.x)))); // samplesBuffer[threadIdx.x]
-                if (edit_distance < min_distance) {
-                    int previous = atomicMin(&min_distance, edit_distance);
-                    if (edit_distance < previous && edit_distance == min_distance) {
-                        minIdx = samplesBuffer.get(threadIdx.x);
-                    }
-                }
-                __syncthreads();
-                if (threadIdx.x == 0) {
-                    samplesBuffer.pop(THREADS_PER_BLOCK); //removes all of the checked reads
-                }
-                __syncthreads();
-            }
-
-        }
-    }
-    // empty samplesBuffer one last time
-    if(samplesBuffer.length > 0) {
-        if (threadIdx.x < samplesBuffer.length){
-            int edit_distance = editDistance(read,
-                                             (reads + N * (samplesBuffer.get(threadIdx.x)))); // samplesBuffer[threadIdx.x]
-            if (edit_distance < min_distance) {
-                int previous = atomicMin(&min_distance, edit_distance);
-                if (edit_distance < previous && edit_distance == min_distance) {
-                    minIdx = samplesBuffer.get(threadIdx.x);
-                }
-            }
-        }
-        __syncthreads();
-
-    }
-//    printf("The minimum_num of thread %d block %d is: %d\n",threadIdx.x,blockIdx.x,minimum_num);
-
-    if(threadIdx.x == 0){
-        min_num[blockIdx.x] = min_distance;
-        min_index[blockIdx.x] = minIdx;
-    }
-    __syncthreads();
-
-}
+const int N = 115;
+const int THREADS_PER_BLOCK = 32;
+const int ETH = 200;
+const int K = 12;
+const int K_CLOSEST = 3;
 
 int main(){
 
@@ -337,25 +139,6 @@ int main(){
     cudaFree(d_tmp_read_counts);
     findClosest<<<num_reads,THREADS_PER_BLOCK>>>(d_reads,d_min_num, d_min_index, d_histograms,d_index_table,d_read_chunk);
 
-    cudaMemcpy(index_table, d_index_table, std::pow(4,K) * sizeof(IndexTable), cudaMemcpyDeviceToHost);
-    cudaMemcpy(read_chunk, d_read_chunk, read_counts_sum * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(read_prefix, d_read_prefix, std::pow(4,K) * sizeof(int), cudaMemcpyDeviceToHost);
-
-    std::cout << "kmer" << ","<< "reads" << ","<< "read counts" << ",read prefix"<< std::endl;
-    for(int i = 0; i < std::pow(4,K); i++){
-        if (index_table[i].count != 0){
-            std::cout << i << ",[";
-            for (int j = 0; j < index_table[i].count; j++){
-                std::cout << read_chunk[index_table[i].index+j];
-                if (j != index_table[i].count-1){
-                    std::cout << ",";
-                }
-            }
-            std::cout << "]," <<index_table[i].count<< ","<< read_prefix[i] << std::endl;
-        }
-
-    }
-
     cudaMemcpy(min_num, d_min_num, num_reads * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(min_index, d_min_index, num_reads * sizeof(int), cudaMemcpyDeviceToHost);
 
@@ -365,4 +148,211 @@ int main(){
     }
 
     return 0;
+}
+
+__global__ void findClosest(const char *reads, int *min_num, int *min_index, Histogram *histograms, IndexTable *index_table, int *read_chunk, int *minClosestDists, int *minClosestDistsIdx){
+    __shared__ CyclicBuffer <2 * THREADS_PER_BLOCK, int> samplesBuffer;
+    samplesBuffer.reset();  // resets the buffer
+
+    __shared__ int minDistsMaxIdx;
+    __shared__ int minClosestDists[K_CLOSEST];
+    __shared__ int minClosestDistsIdx[K_CLOSEST];
+    __shared__ int distThread[THREADS_PER_BLOCK];
+    __shared__ int distThreadIdx[THREADS_PER_BLOCK];
+    __shared__ int distances[THREADS_PER_BLOCK]
+    __shared__ int count;
+    __shared__ char read[N];
+
+
+    //creates the main read in the memory:
+    if (threadIdx.x == 0) {
+        minDistsMaxIdx = 0;
+        for (int i = 0; i < N; i++) read[i] = reads[(N * blockIdx.x) + i];
+    }
+    __syncthreads();
+
+    for (int i = 0; i <= N - K; i++) {
+        char kmer[K];
+        for (int j = 0; j < K; j++) kmer[j] = read[j + i];
+        IndexTable kmer_reads = index_table[dnaToDecimal(kmer)];
+
+        for (int j = 0; j < kmer_reads.count; j += THREADS_PER_BLOCK) {
+//            printf("%d\n",kmer_reads.count);
+            if (j + threadIdx.x < kmer_reads.count) {
+                int comp_read = read_chunk[kmer_reads.index + j + threadIdx.x];
+                count = 0;
+                if (blockIdx.x != comp_read) { //TODO: instead have a set of compared read, put blockIdx.x in it
+
+                    int length = samplesBuffer.length;  //enables to know the current length
+                    // Compute histogram diff between our read and read comp_read
+
+                    int diff = abs(histograms[blockIdx.x].numA - histograms[comp_read].numA) +
+                               abs(histograms[blockIdx.x].numT - histograms[comp_read].numT) +
+                               abs(histograms[blockIdx.x].numG - histograms[comp_read].numG) +
+                               abs(histograms[blockIdx.x].numC - histograms[comp_read].numC);
+                    // If diff < 2*ETH, add to samples buffer
+                    if (diff < 2 * ETH) {
+                        int readBufferIdx = atomicAdd(&count,
+                                                      1);  //if I did normal add it would be overwritten, returns count before add
+                        samplesBuffer.set(readBufferIdx + length, comp_read);
+                    }
+                }
+            }
+            __syncthreads();
+
+            if (threadIdx.x == 0) {
+
+                samplesBuffer.push(count);//enlarges the length of the buffer
+//                printf("%d, %d\n",samplesBuffer.length,count);
+            }
+            __syncthreads();
+
+            if (samplesBuffer.length >= THREADS_PER_BLOCK) {
+                int edit_distance = editDistance(read, (reads + N * (samplesBuffer.get(
+                        threadIdx.x)))); // samplesBuffer[threadIdx.x]
+                distances[thread.Idx] = (edit_distance < ) ? edit_distance : -1 { // TODO: serialize
+                __syncthreads();
+                for(int i = 0; i < THREADS_PER_BLOCK; i++){
+                    if (distances[i] == -1) { continue; }
+                    if (distances[i] < minClosestDists[minDistsMaxIdx]){
+                        minClosestDistsIdx[minDistsMaxIdx] = samplesBuffer.get(i);
+                        minClosestDists[minDistsMaxIdx] = distances[i];
+
+                        distThread[thread.Idx] = 0;
+                        distThreadIdx[thread.Idx] = -1;
+                        for(int i = thread.Idx; i < K_CLOSEST; i += THREADS_PER_BLOCK){
+                            if (i >= K_CLOSEST){continue;}
+                            distThreadIdx[thread.Idx] = (minClosestDists[i] > distThread[thread.Idx]) ? i : distThreadIdx[thread.Idx];
+                            distThread[thread.Idx] = max(distThread[thread.Idx], minClosestDists[i]);
+                        }
+                        __syncthreads();
+                        for(int s = THREADS_PER_BLOCK / 2; s > 0; s >>= 1) {
+                            if (thread < s) {
+                                distThreadIdx[thread] = (distThread[thread + s] > distThread[thread]) ?
+                                                        distThreadIdx[thread + s] : distThreadIdx[thread];
+                                distThread[thread] = max(distThread[thread], distThread[thread + s]);
+                            }
+                        }
+                        __syncthreads();
+                        if(thread == 0) {
+                            minDistsMaxIdx = distThreadIdx[0];
+                        }
+                    }
+                }
+
+                __syncthreads();
+                if (threadIdx.x == 0) {
+                    samplesBuffer.pop(THREADS_PER_BLOCK); //removes all of the checked reads
+                }
+                __syncthreads();
+            }
+
+        }
+    }
+    // empty samplesBuffer one last time
+    if(samplesBuffer.length > 0) {
+        if (threadIdx.x < samplesBuffer.length){
+            int edit_distance = editDistance(read,
+                                             (reads + N * (samplesBuffer.get(threadIdx.x)))); // samplesBuffer[threadIdx.x]
+            if (edit_distance < minDistsMax) {
+                int previous = atomicMin(&minDistsMax, edit_distance);
+                if (edit_distance < previous && edit_distance == minDistsMax) {
+                    minDistsMaxIdx = samplesBuffer.get(threadIdx.x);
+                }
+            }
+        }
+        __syncthreads();
+
+    }
+// TODO: change so we give minClosestDists and minClosestIdx
+    if(threadIdx.x == 0){
+        min_num[blockIdx.x] = minDistsMax;
+        min_index[blockIdx.x] = minDistsMaxIdx;
+    }
+    __syncthreads();
+}
+
+
+
+
+__device__ int editDistance(const char* s, const char* t){
+
+    // The last row
+    int arr[N + 1];
+
+    // Initialize arr to be the first row of the DP matrix
+    for(int j = 0; j <= N; j++){
+        arr[j] = j;
+    }
+
+    // Fill the remaining rows
+    for(int i = 1; i <= N; i++){
+    
+        int diag = arr[0];
+        arr[0] = i;
+
+        for(int j = 1; j <= N; j++){
+
+            int new_val = min(diag + (s[i - 1] != t[j - 1]), min(arr[j] + (s[i-1] != 'P'), arr[j - 1] + (t[i-1] != 'P')));
+            diag = arr[j];
+            arr[j] = new_val;
+
+        }
+
+    }
+
+    return arr[N];
+
+}
+
+__global__ void computeHistogram(const char *reads,Histogram *histograms, int *num_reads){
+
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= *num_reads) return;
+    histograms[index].numA = 0;
+    histograms[index].numT = 0;
+    histograms[index].numG = 0;
+    histograms[index].numC = 0;
+    for(int i = 0; i < N; i++){
+        histograms[index].numA += (reads[index * N + i] == 'A');
+        histograms[index].numT += (reads[index * N + i] == 'T');
+        histograms[index].numG += (reads[index * N + i] == 'G');
+        histograms[index].numC += (reads[index * N + i] == 'C');
+    }
+    
+}
+
+__global__ void computeReadCounts(const char *reads, int *read_counts, int *num_reads){
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index >= *num_reads) return;
+    for (int i = 0; i <= N - K; i++){
+        char kmer[K];
+        for (int j = 0; j < K; j++) kmer[j] = reads[(N * index)+j+i];
+        atomicAdd(&read_counts[dnaToDecimal(kmer)], 1);
+    }
+}
+
+__global__ void computeIndexTable(const char *reads, int *read_counts, int *tmp_read_counts, int *read_chunk, int *prefix, IndexTable *index_table, int *num_reads){
+    int read = blockIdx.x * blockDim.x + threadIdx.x;
+    if (read >= *num_reads) return;
+    for (int i = 0; i <= READ_LENGTH - KMER; i++){
+        char kmer[KMER];
+        for (int j = 0; j < KMER; j++) kmer[j] = reads[(READ_LENGTH * read)+j+i];
+        int kmerNum = dnaToDecimal(kmer);
+        int value = atomicAdd(&tmp_read_counts[kmerNum], 1);
+        int index = prefix[kmerNum] + value;
+        read_chunk[index] = read;
+        index_table[kmerNum].index = prefix[kmerNum];
+        index_table[kmerNum].count = read_counts[kmerNum];
+    }
+}
+
+__constant__ int RHO[26] = {0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0};//possibilities
+__device__ int dnaToDecimal(const char* dnaSeq) {
+    int decimalNum = 0;
+    for (int i = K - 1; i >= 0; i--) {
+        int nucleotideValue = RHO[dnaSeq[i] - 'A'];
+        decimalNum = decimalNum * 4 + nucleotideValue;
+    }
+    return decimalNum;
 }
