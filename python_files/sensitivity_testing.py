@@ -1,29 +1,21 @@
-from automate_reruns import Compiler, run_program_and_save_output, RAW_CLUSTERS_DIR, CODE_PATH, EXECUTABLE_PATH
-from cluster_files import ClusterFile
+from automate_reruns import Compiler, run_program_and_save_output, GPU_OPT_BENCH_PATH, EXECUTABLE_PATH
+from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, get_files
 import os
 
-K_RESULT_PATH = "/home/noam/cuda_codes/kresults"
+K_RESULT_PATH = "/home/noam/alphaProject/results/kresults"
 K_RANGE = range(9, 16)
 K_DEFAULT = 12
 
-ETH_RESULT_PATH = "/home/noam/cuda_codes/ethresults"
+ETH_RESULT_PATH = "/home/noam/alphaProject/results/ethresults"
 ETH_RANGE = range(3, 20)
 ETH_DEFAULT = 10
 
-COMBINED_RESULTS = "/home/noam/cuda_codes/combined_dir_results"
+COMBINED_RESULTS = "/home/noam/alphaProject/results/combined_dir_results"
 COMBINED_K_RANGE = range(10, 15, 2)
 COMBINED_ETH_RANGE = range(6, 13, 2)
 
 # in order to check that it works
 DIVIDE_BY = 1
-
-
-def get_files(path) -> dict:
-    files_ = {}
-    for file_name in os.listdir(path):
-        if "evyaPfitserPsuedo.txt" == file_name:
-            files_[file_name.replace(".txt", "")] = ClusterFile(os.path.join(RAW_CLUSTERS_DIR, file_name))
-    return files_
 
 
 def sensitivity(file: ClusterFile, result_path: str, sens_range: iter, k=False, eth=False, custom_k=None, custom_eth=None):
@@ -38,16 +30,16 @@ def sensitivity(file: ClusterFile, result_path: str, sens_range: iter, k=False, 
         print(run)
         if k:
             if custom_eth is None:
-                compiler = Compiler(read_length=file.get_max_read_length(), uchar_optimization=True, divide_data_by=DIVIDE_BY, k=run)
+                compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=DIVIDE_BY, k=run)
             else:
-                compiler = Compiler(read_length=file.get_max_read_length(), uchar_optimization=True, divide_data_by=DIVIDE_BY, k=run, eth=custom_eth)
+                compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=DIVIDE_BY, k=run, eth=custom_eth)
         else:
             if custom_k is None:
-                compiler = Compiler(read_length=file.get_max_read_length(), uchar_optimization=True, divide_data_by=DIVIDE_BY, eth=run)
+                compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=DIVIDE_BY, eth=run)
             else:
-                compiler = Compiler(read_length=file.get_max_read_length(), uchar_optimization=True, divide_data_by=DIVIDE_BY, eth=run, k=custom_k)
+                compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=DIVIDE_BY, eth=run, k=custom_k)
 
-        compiler.compile(code_path=CODE_PATH, output_path=EXECUTABLE_PATH)
+        compiler.compile(code_path=GPU_OPT_BENCH_PATH, output_path=EXECUTABLE_PATH)
         run_program_and_save_output(file.prepared, output_path)
 
 

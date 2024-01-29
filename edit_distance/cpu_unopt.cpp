@@ -4,17 +4,8 @@
 # define DIVIDE_DATA_BY 1
 # endif
 
-# if !defined UCHAR4_OPTIMIZATION
-# define UCHAR4_OPTIMIZATION true
-# endif
 
-# if !defined FORCE_UCHAR4_OPTIMIZATION
-# define FORCE_UCHAR4_OPTIMIZATION false
-# endif
-//const int READ_LENGTH = 256;
-
-__device__ int editDistance(const char* s, const char* t){
-#if (READ_LENGTH <= 115 || !UCHAR4_OPTIMIZATION) && !FORCE_UCHAR4_OPTIMIZATION
+int editDistance(const char* s, const char* t){
     // The last row
     int arr[READ_LENGTH + 1];
 
@@ -31,8 +22,8 @@ __device__ int editDistance(const char* s, const char* t){
 
         for (int j = 1; j <= READ_LENGTH; j++) {
 
-            int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                              min(arr[j] + (s[i - 1] != 'P'), arr[j - 1] + (t[i - 1] != 'P')));
+            int new_val = std::min(diag + (s[i - 1] != t[j - 1]),
+                              std::min(arr[j] + (s[i - 1] != 'P'), arr[j - 1] + (t[i - 1] != 'P')));
             diag = arr[j];
             arr[j] = new_val;
 
@@ -40,74 +31,6 @@ __device__ int editDistance(const char* s, const char* t){
 
     }
     return arr[READ_LENGTH];
-#else
-    uchar4 arr[READ_LENGTH/4 + 1];
-
-        // Initialize arr to be the first row of the DP matrix
-        for (int j = 0; j <= READ_LENGTH; j+=4){
-            arr[j].x = j;
-            arr[j].y = j+1;
-            arr[j].z = j+2;
-            arr[j].w = j+3;
-        }
-
-        // Fill the remaining rows
-        for(int i = 1; i <= READ_LENGTH; i++) {
-
-            int diag = arr[0].x;
-            arr[0].x = i;
-
-            for (int j = 1; j <= READ_LENGTH; j++) {
-                switch (j%4){
-                    case 0:
-                        {
-                        // x
-                        int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                                  min(arr[j/4].x + (s[i - 1] != 'P'), arr[j/4 - 1].w + (t[i - 1] != 'P')));
-                        diag = arr[j/4].x;
-                        arr[j/4].x = new_val;
-                        }
-                        break;
-                    case 1:
-                        {
-                        // y
-                        int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                                  min(arr[j/4].y + (s[i - 1] != 'P'), arr[j/4].x + (t[i - 1] != 'P')));
-                        diag = arr[j/4].y;
-                        arr[j/4].y = new_val;
-                        }
-                        break;
-                    case 2:
-                        {
-                        // z
-                        int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                                  min(arr[j/4].z + (s[i - 1] != 'P'), arr[j/4].y + (t[i - 1] != 'P')));
-                        diag = arr[j/4].z;
-                        arr[j/4].z = new_val;
-                        }
-                        break;
-                    case 3:
-                        {
-                        // w
-                        int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                                  min(arr[j/4].w + (s[i - 1] != 'P'), arr[j/4].z + (t[i - 1] != 'P')));
-                        diag = arr[j/4].w;
-                        arr[j/4].w = new_val;
-                        }
-                        break;
-                }
-            }
-        }
-
-        int last =  READ_LENGTH/4;
-        switch (READ_LENGTH % 4){
-            case 0: return arr[last].x;
-            case 1: return arr[last].y;
-            case 2: return arr[last].z;
-            case 3: return arr[last].w;
-        }
-
-#endif
 }
 
 

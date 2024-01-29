@@ -1,11 +1,7 @@
 import os
 import pandas as pd
-from cluster_files import ClusterFile
+from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, PADDED_CLUSTERS_DIR, PREPARED_READS_DIR
 import seaborn as sns
-
-RAW_CLUSTERS_DIR = "/home/noam/cuda_codes/reads/raw_files"
-PADDED_CLUSTERS_DIR = "/home/noam/cuda_codes/reads/padded_clusters"
-PREPARED_READS_DIR = "/home/noam/cuda_codes/reads/prepared_reads"
 
 
 class ResultFile:
@@ -58,7 +54,3 @@ class ResultFile:
         classifications[mask] = self.df.loc[mask, 'strand'].values == closest_read_strands
 
         self.df["classification"] = classifications
-
-
-
-

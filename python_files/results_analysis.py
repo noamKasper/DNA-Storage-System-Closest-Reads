@@ -5,93 +5,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import os
 
-RESULTS_DIR = "/home/noam/cuda_codes/results2"
-
-
-def create_accuracy_line_plot(s):
-    sns.lineplot(data=s.rename("Accuracy"), marker='o')
-    for i in range(len(s.keys())):
-        plt.plot([s.keys()[i], s.keys()[i]], [0, s.values[i]], color='gray', linestyle='--', linewidth=1)
-    plt.title("Accuracy VS. ETH")
-    plt.tight_layout()
-    plt.savefig("/home/noam/cuda_codes/figs/accuracy_ETH.png")
-
-
-def create_error_rate_line_plot(s: pd.Series):
-    error_rate = 1 - s.rename("Error Rate")
-    sns.lineplot(data=error_rate, marker='o')
-    # for i in range(len(s.keys())):
-    #     plt.plot([s.keys()[i], s.keys()[i]], [0, s.values[i]], color='gray', linestyle='--', linewidth=1)
-    plt.yscale('log')
-    plt.title("Error Rate VS. ETH")
-    plt.tight_layout()
-    plt.savefig("/home/noam/cuda_codes/figs/accuracy_ETH.png")
-    error_rate.to_csv("error rate vs ETH.csv")
-
-
-def create_ETH_time_line_plot():
-    df = pd.read_csv("/home/noam/cuda_codes/python_files/time-ETH.csv")
-    sns.lineplot(data=df, x="ETH", y="Time(seconds)", marker='o')
-    # plt.yscale('log')
-    plt.title("Time(seconds) VS. ETH")
-    plt.tight_layout()
-    plt.savefig("/home/noam/cuda_codes/figs/time_ETH.png")
-
-
-def create_ETH_time_error_rate_plot(s):
-    error_rate = 1 - s.rename("Error Rate")
-    df = pd.read_csv("/home/noam/cuda_codes/python_files/time-ETH.csv")
-
-    ax1 = sns.lineplot(data=error_rate, marker="o", label='Error Rate')
-    ax1.set_yscale("log")
-
-    ax2 = ax1.twinx()
-    sns.lineplot(data=df, x='ETH', y='Time(seconds)', marker="o", color='orange', label='Time', ax=ax2)
-
-    horizontal_line_value = 1 - calcTrueClassification()
-    ax1.axhline(y=horizontal_line_value, color='gray', linestyle='--', label='Absolute Error')
-
-    lines_1, labels_1 = ax1.get_legend_handles_labels()
-    lines_2, labels_2 = ax2.get_legend_handles_labels()
-    ax2.legend(lines_1 + lines_2, labels_1 + labels_2, loc='center right')
-
-    ax1.get_legend().remove()
-    plt.title("Error Rate VS. ETH VS. Time")
-    plt.tight_layout()
-    plt.savefig("/home/noam/cuda_codes/figs/accuracy_ETH.png")
-
-
-def get_accuracy(classifications):
-    classifications = classifications
-    return classifications.sum() / len(classifications) * 100
-
-
-def get_results_files(n):
-    results_files = {}
-    for file_name in os.listdir(RESULTS_DIR):
-        results_files[file_name] = []
-        for i in range(1, n + 1):
-            results_files[file_name].append(ResultFile(os.path.join(RESULTS_DIR, file_name, f"{i}.csv")))
-    return results_files
-
-
-# results = get_results_files(24)
-# time_results = pd.DataFrame(columns=list(results.keys()))
-# for k, v in results.items():
-#     time_results[k] = pd.Series({i.duped_reads_buffer: i.mean_thread_runtime for i in v})
-#
-#
-# for column in time_results:
-#     sns.lineplot(x=time_results.index, y=time_results[column], label=column)
-#
-# plt.xlabel("Read Buffer Size")
-# plt.ylabel("Mean Thread Runtime(Seconds)")
-# plt.yscale("log")
-# plt.savefig("/home/noam/cuda_codes/figs/Mean Thread Runtime-Read Buffer Size.png")
 
 def saveDataSetsCSV():
     # results_path = "/home/noam/cuda_codes/Results"
-    results_path = "/home/noam/cuda_codes/effectivenessTestResults/GPUSimple"
+    results_path = "/home/noam/alphaProject/effectivenessTestResults/GPUSimple"
     datasets = {}
     results = {}
     columns = ["File Size(MB)", "Mean Cluster Length", "Number of Clusters", "Number of Reads", "Max Read Length", "Mean Thread Edit-Distance Calculations", "Mean thread runtime(seconds)", "Total runtime", "Accuracy"]
@@ -153,7 +70,7 @@ def verify_correctness():
         results["uchar: " + i.replace(".txt", "")].complete_df(os.path.join(RAW_CLUSTERS_DIR, i))
         results["research: " + i.replace(".txt", "")] = ResultFile(third_result_path)
         results["research: " + i.replace(".txt", "")].complete_df(os.path.join(RAW_CLUSTERS_DIR, i))
-        
+
     df = pd.DataFrame(columns=["dataset", "optimization", "cluster correctness", "read correctness", "edit distance correctness"])
     for i, (result_name, result) in enumerate(results.items()):
         optimization, database_name = tuple(result_name.split(": "))
@@ -184,4 +101,3 @@ def verify_correctness():
     df.to_csv("/home/noam/cuda_codes/correctness.csv", index=False)
 # saveDataSetsCSV()
 # verify_correctness()
-

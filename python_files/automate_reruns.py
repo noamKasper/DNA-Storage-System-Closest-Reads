@@ -1,16 +1,12 @@
 import os
 import subprocess
-from cluster_files import ClusterFile
+from cluster_files import ClusterFile, RAW_CLUSTERS_DIR
 import time
 
-RAW_CLUSTERS_DIR = "/home/noam/cuda_codes/reads/raw_files"
-CODE_PATH = '/home/noam/cuda_codes/copy_edit_dis.cu'
-EXECUTABLE_PATH = '/home/noam/cuda_codes/program'
-PREPARED_DIR = '/home/noam/cuda_codes/reads/prepared_reads'
-SIZES_JSON = '/home/noam/cuda_codes/reads/size.json'
-RESULTS_DIR = '/home/noam/cuda_codes/Results2'
-RESULTS_DIR1 = '/home/noam/cuda_codes/kresults'
-RESULTS_DIR2 = '/home/noam/cuda_codes/ethresults'
+GPU_OPT_BENCH_PATH = '/home/noam/alphaProject/edit_distance/gpu_opt_bench.cu'
+GPU_UNOPT_PATH = '/home/noam/alphaProject/edit_distance/gpu_unopt.cu'
+CPU_UNOPT_PATH = '/home/noam/alphaProject/edit_distance/cpu_unopt.cpp'
+EXECUTABLE_PATH = '/home/noam/alphaProject/edit_distance/program'
 
 
 class Compiler:
@@ -72,12 +68,11 @@ if __name__ == "__main__":
         files[file_name.replace(".txt", "")] = ClusterFile(os.path.join(RAW_CLUSTERS_DIR, file_name))
 
     for i, (dir_name, file) in enumerate(files.items()):
-        output_dir = "/home/noam/cuda_codes/effectivenessTestResults/GPUSimple/notUcharOptimized"
+        output_dir = "/home/noam/alphaProject/effectivenessTestResults/GPUSimple/notUcharOptimized"
         output_path = os.path.join(output_dir, dir_name + ".csv")
         print(f"{dir_name}({f'{i + 1}/{len(files)}'}):")
         compiler = Compiler(read_length=file.get_max_read_length(), uchar_optimization=False, divide_data_by=1000)
-        compiler.compile(code_path="/home/noam/cuda_codes/trueResults.cu", output_path=EXECUTABLE_PATH)
-        # compile_program("/home/noam/cuda_codes/trueResults.cu", EXECUTABLE_PATH, file.get_max_read_length(), not_uchar_optimized=True)
+        compiler.compile(code_path=GPU_UNOPT_PATH, output_path=EXECUTABLE_PATH)
         run_program_and_save_output(file.prepared, output_path)
 
     # for i, (dir_name, file) in enumerate(files.items()):

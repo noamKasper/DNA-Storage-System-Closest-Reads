@@ -1,8 +1,15 @@
 import os
 
-RAW_CLUSTERS_DIR = "/home/noam/cuda_codes/reads/raw_files"
-PADDED_CLUSTERS_DIR = "/home/noam/cuda_codes/reads/padded_clusters"
-PREPARED_READS_DIR = "/home/noam/cuda_codes/reads/prepared_reads"
+RAW_CLUSTERS_DIR = "/home/noam/alphaProject/reads/raw_files"
+PADDED_CLUSTERS_DIR = "/home/noam/alphaProject/reads/padded_clusters"
+PREPARED_READS_DIR = "/home/noam/alphaProject/reads/prepared_reads"
+
+
+def get_files(path) -> dict:
+    files_ = {}
+    for file_name in os.listdir(path):
+        files_[file_name.replace(".txt", "")] = ClusterFile(os.path.join(RAW_CLUSTERS_DIR, file_name))
+    return files_
 
 
 class ClusterFile:
@@ -71,7 +78,7 @@ class ClusterFile:
     def get_mean_cluster_length(self):
         with open(self.raw, "r") as f:
             clusters = [len(i.split("\n*****************************\n")[1].split("\n")) for i in f.read().strip().split("\n\n\n")]
-            return sum(clusters)/len(clusters)
+            return sum(clusters) / len(clusters)
 
     def get_max_read_length(self):
         with open(self.raw, "r") as f:
@@ -91,7 +98,7 @@ class ClusterFile:
 
 if __name__ == "__main__":
     for i in os.listdir(RAW_CLUSTERS_DIR):
-        cluster = ClusterFile(os.path.join(RAW_CLUSTERS_DIR,i))
+        cluster = ClusterFile(os.path.join(RAW_CLUSTERS_DIR, i))
         print(i)
         print("number of reads:", cluster.get_num_reads())
         print("mean cluster length:", cluster.get_mean_cluster_length())
