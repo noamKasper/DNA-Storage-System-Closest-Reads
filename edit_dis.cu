@@ -18,6 +18,7 @@ struct IndexTable{
     int count;
 };
 
+
 template <unsigned int n, typename T>
 /**
  * A cyclic buffer of size n
