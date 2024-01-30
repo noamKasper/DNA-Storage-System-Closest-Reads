@@ -7,7 +7,7 @@ from sensitivity_testing import K_RESULT_PATH, ETH_RESULT_PATH, DIVIDE_BY
 from cluster_files import ClusterFile
 from results_files import ResultFile, RAW_CLUSTERS_DIR
 
-SENSITIVITY_FIG_FOLDER = "/home/noam/cuda_codes/figs/sensitivity"
+SENSITIVITY_FIG_FOLDER = "/home/noam/alphaProject/figs/sensitivity"
 
 pd.set_option('display.float_format', '{:.20f}'.format)
 
@@ -143,4 +143,4 @@ def complex_sensitivity(path: str, result: str):
 sensitivity_graphs(os.path.join(SENSITIVITY_FIG_FOLDER, "K.png"), k=True)
 sensitivity_graphs(os.path.join(SENSITIVITY_FIG_FOLDER, "ETH.png"), eth=True)
 
-complex_sensitivity("/home/noam/cuda_codes/combined_dir_results", os.path.join(SENSITIVITY_FIG_FOLDER, "complex.png"))
+complex_sensitivity("/home/noam/alphaProject/results/combined_dir_results", os.path.join(SENSITIVITY_FIG_FOLDER, "complex.png"))
