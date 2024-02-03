@@ -360,10 +360,12 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
 
             // empty samples buffer and calculate the edit distances of the reads inside of it before it gets full
             if (samplesBuffer.length >= THREADS_PER_BLOCK) {
+
                 distances[threadIdx.x] = editDistance(read, (reads + READ_LENGTH * (samplesBuffer.get(threadIdx.x))));
                 __syncthreads();
                 for(int i = 0; i < THREADS_PER_BLOCK; i++){
                     if (distances[i] < closestDists[closestDistsMaxIdx]){
+
                         closestDistsIdx[closestDistsMaxIdx] = samplesBuffer.get(i);
                         closestDists[closestDistsMaxIdx] = distances[i];
 
@@ -498,16 +500,7 @@ int main(){
     char *d_reads; cudaMalloc(&d_reads,reads_length * sizeof(char));
     cudaMemcpy(d_reads, reads, reads_length * sizeof(char), cudaMemcpyHostToDevice);
 
-//    Histogram *histograms = (Histogram*) malloc(num_reads * sizeof(Histogram));
     Histogram *d_histograms; cudaMalloc(&d_histograms, num_reads * sizeof(Histogram));
-
-    // will be a list of the minimum edit distance for each read
-    int *min_num = (int*) malloc(num_reads * K_CLOSEST * sizeof(int));
-    int *d_min_num; cudaMalloc(&d_min_num, num_reads * K_CLOSEST * sizeof(int));
-
-    // will be a list of the index of the minimum edit distance for each read
-    int *min_index = (int*) malloc(num_reads * K_CLOSEST * sizeof(int));
-    int *d_min_index; cudaMalloc(&d_min_index, num_reads * K_CLOSEST * sizeof(int));
 
     int *d_read_counts; cudaMalloc(&d_read_counts, std::pow(4,KMER) * sizeof(int)); cudaMemset(d_read_counts, 0, std::pow(4,KMER) * sizeof(int));
     int *read_prefix = (int*) malloc(std::pow(4,KMER) * sizeof(int));
@@ -531,10 +524,20 @@ int main(){
     computeIndexTable<<<num_reads/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads, d_read_counts, d_tmp_read_counts, d_read_chunk, d_read_prefix, d_index_table, d_num_reads);
     cudaFree(d_read_counts);
     cudaFree(d_tmp_read_counts);
+
+    size_t results_length = num_reads * K_CLOSEST;
+    // will be a list of the minimum edit distance for each read
+    int *min_num = (int*) malloc(results_length * sizeof(int));
+    int *d_min_num; cudaMalloc(&d_min_num, results_length * sizeof(int));
+
+    // will be a list of the index of the minimum edit distance for each read
+    int *min_index = (int*) malloc(results_length * sizeof(int));
+    int *d_min_index; cudaMalloc(&d_min_index, results_length * sizeof(int));
+
     findClosest<<<num_reads,THREADS_PER_BLOCK>>>(d_reads,d_min_num, d_min_index, d_histograms,d_index_table,d_read_chunk);
 
-    cudaMemcpy(min_num, d_min_num, num_reads * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(min_index, d_min_index, num_reads * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(min_num, d_min_num, results_length * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(min_index, d_min_index, results_length * sizeof(int), cudaMemcpyDeviceToHost);
 
     std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
     for(int i = 0; i < num_reads; i++){
