@@ -3,6 +3,7 @@ import subprocess
 from cluster_files import ClusterFile, RAW_CLUSTERS_DIR
 import time
 
+GPU_OPT_PATH = '/home/noam/alphaProject/edit_distance/gpu_opt.cu'
 GPU_OPT_BENCH_PATH = '/home/noam/alphaProject/edit_distance/gpu_opt_bench.cu'
 GPU_UNOPT_PATH = '/home/noam/alphaProject/edit_distance/gpu_unopt.cu'
 CPU_UNOPT_PATH = '/home/noam/alphaProject/edit_distance/cpu_unopt.cpp'
@@ -48,11 +49,11 @@ class Compiler:
 #             exit(result.returncode)
 
 
-def run_program_and_save_output(padded_path, output_path, message=""):
+def run_program_and_save_output(padded_path, output_path, message="", exec_path=EXECUTABLE_PATH):
     print(output_path)
     start_time = time.time()
     with open(output_path, 'w') as log_file, open(padded_path, 'r') as input_file:
-        subprocess.run(f'./{EXECUTABLE_PATH}', shell=True, stdout=log_file, stderr=subprocess.STDOUT, stdin=input_file)
+        subprocess.run(f'./{exec_path}', shell=True, stdout=log_file, stderr=subprocess.STDOUT, stdin=input_file)
     message = "," + message
     with open(output_path, "r+") as f:
         lines = f.readlines()
