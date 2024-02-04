@@ -148,7 +148,7 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, int
 }
 
 int main(){
-    cudaSetDevice(4);
+//    cudaSetDevice(4);
 
     std::string readsStr;
     std::cin >> readsStr;
