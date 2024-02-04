@@ -65,8 +65,8 @@ class NResultsFile:
         self.total_runtime = None
         self.message = None
         self.cluster_file = None
-        self.df = pd.read_csv(path, skiprows=1)
-        self.completed_df = None
+        self.df: pd.DataFrame = pd.read_csv(path, skiprows=1)
+        self.completed_df: pd.DataFrame | None = None
 
         self.get_settings()
 
@@ -85,7 +85,7 @@ class NResultsFile:
                     throw("Error while reading file settings")
 
     def complete_df(self, raw_file_path):
-        if not os.path.exists(raw_file_path):
+        if not os.path.basename(raw_file_path) in os.listdir(RAW_CLUSTERS_DIR):
             print("Path", raw_file_path, "does not exist")
             return
 
@@ -125,13 +125,17 @@ class NResultsFile:
         # Concatenate the result
         self.completed_df = pd.concat([self.completed_df[[]], closest_read_cols, edit_distance_cols], axis=1)
         self.cluster_file = ClusterFile(raw_file_path)
-        with open(self.cluster_file.padded, "r") as f:
+        with open(self.cluster_file.raw, "r") as f:
             strand_read_map = []
+            cluster_length_map = []
             for strandIdx, cluster in enumerate(f.read().strip().split("\n\n\n")):
-                for _ in cluster.split("\n*****************************\n")[1].split():
+                reads = cluster.split("\n*****************************\n")[1].split()
+                for _ in reads:
                     strand_read_map.append(strandIdx)
+                    cluster_length_map.append(len(reads))
 
-        self.completed_df["strand"] = pd.Series(strand_read_map)
+        strands = pd.Series(strand_read_map)
+        cluster_lengths = pd.Series(cluster_length_map)
 
         for i in range(1, self.n + 1):
             closest_read_col = f'closest read{i}'
@@ -139,12 +143,15 @@ class NResultsFile:
             mask = self.completed_df[closest_read_col] != -1
 
             closest_read_indices = self.completed_df.loc[mask, closest_read_col].values
-            closest_read_strands = self.completed_df.loc[closest_read_indices, 'strand'].values
+            closest_read_strands = strands[closest_read_indices].values
 
             classifications = pd.Series(False, index=self.completed_df.index)  # Initialize with False for all rows
-            classifications[mask] = self.completed_df.loc[mask, 'strand'].values == closest_read_strands
+            classifications[mask] = strands[mask].values == closest_read_strands
 
             self.completed_df[f'classification{i}'] = classifications
+
+        self.completed_df["strand"] = strands
+        self.completed_df["cluster length"] = cluster_lengths
 
     def get_results(self) -> tuple[int, int, int, int]:
         """
@@ -167,13 +174,27 @@ class NResultsFile:
             print("df completed does not exist, get help!")
             return -1, -1, -1, -1
 
-        clusters = self.cluster_file.get_clusters()
+        def categorize(x: pd.Series):
+            classifications = x.filter(regex='classification\d+')
+            cluster_length = x["cluster length"]
+            if cluster_length < self.n + 1:
+                if classifications.sum() == cluster_length - 1:
+                    return "ST"
+                else:
+                    return "SF"
+            else:
+                if classifications.sum() == self.n:
+                    return "LT"
+                else:
+                    return "LF"
 
-        return
-
+        self.completed_df["result type"] = self.completed_df.apply(categorize, axis=1)
+        counts = self.completed_df["result type"].value_counts()
+        return counts["ST"], counts["SF"], counts["LT"], counts["LF"]
 
 
 if __name__ == "__main__":
     result = NResultsFile("/home/noam/alphaProject/results.csv")
-    result.complete_df("/home/noam/alphaProject/reads/prepared_reads/evyaPfitserPsuedo.txt")
-    result.df.to_csv("/home/noam/alphaProject/post_results.csv", index=True, index_label="read")
+    result.complete_df("evyaPfitserPsuedo.txt")
+    result.completed_df.to_csv("/home/noam/alphaProject/post_results.csv", index=True, index_label="read")
+    print(result.get_results())
