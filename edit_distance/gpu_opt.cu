@@ -31,7 +31,7 @@
 # endif
 
 # if !defined K_CLOSEST
-# define K_CLOSEST 3
+# define K_CLOSEST 5
 # endif
 
 const int THREADS_PER_BLOCK = 32;
@@ -486,7 +486,7 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
 }
 
 int main(){
-    cudaSetDevice(4);
+//    cudaSetDevice(4);
 
     std::string readsStr;
     std::cin >> readsStr;
