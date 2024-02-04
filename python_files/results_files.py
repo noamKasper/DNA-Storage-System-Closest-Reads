@@ -78,6 +78,7 @@ class NResultsFile:
                 settings = tuple(map(lambda x: float(x) if x.replace(".", "").isnumeric() else x, settings))
                 if len(settings) == 5:
                     self.n, self.eth, self.k, self.total_runtime, self.message = settings
+                    self.n = int(self.n)
                 elif len(settings) == 4:
                     self.n, self.eth, self.k, self.total_runtime = settings
                     self.n = int(self.n)
@@ -153,7 +154,7 @@ class NResultsFile:
         self.completed_df["strand"] = strands
         self.completed_df["cluster length"] = cluster_lengths
 
-    def get_results(self) -> tuple[int, int, int, int]:
+    def get_results(self) -> dict:
         """
         short clusters - reads for which cluster length < n+1
         long clusters - reads for which cluster length >= n+1
@@ -172,7 +173,7 @@ class NResultsFile:
         """
         if self.completed_df is None:
             print("df completed does not exist, get help!")
-            return -1, -1, -1, -1
+            return {}
 
         def categorize(x: pd.Series):
             classifications = x.filter(regex='classification\d+')
@@ -189,8 +190,8 @@ class NResultsFile:
                     return "LF"
 
         self.completed_df["result type"] = self.completed_df.apply(categorize, axis=1)
-        counts = self.completed_df["result type"].value_counts()
-        return counts["ST"], counts["SF"], counts["LT"], counts["LF"]
+        counts = self.completed_df["result type"].value_counts().to_dict()
+        return counts
 
 
 if __name__ == "__main__":

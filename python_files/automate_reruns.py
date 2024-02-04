@@ -26,7 +26,6 @@ class Compiler:
         for i in self._parameters.values():
             if i:
                 command += " -D" + i
-        print(command)
         result = subprocess.run(command, shell=True)
 
         if result.returncode != 0:
@@ -50,7 +49,6 @@ class Compiler:
 
 
 def run_program_and_save_output(padded_path, output_path, message="", exec_path=EXECUTABLE_PATH):
-    print(output_path)
     start_time = time.time()
     with open(output_path, 'w') as log_file, open(padded_path, 'r') as input_file:
         subprocess.run(f'./{exec_path}', shell=True, stdout=log_file, stderr=subprocess.STDOUT, stdin=input_file)

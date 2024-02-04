@@ -21,7 +21,6 @@ class ClusterFile:
         if os.path.basename(path) in os.listdir(RAW_CLUSTERS_DIR):
             self.name: str = os.path.basename(path)
             self.raw = os.path.join(RAW_CLUSTERS_DIR, self.name)
-            print(self.name, self.raw)
         else:
             print(f"{os.path.basename(path)} wasn't found in {RAW_CLUSTERS_DIR}!")
         self.padded = os.path.join(PADDED_CLUSTERS_DIR, self.name)
