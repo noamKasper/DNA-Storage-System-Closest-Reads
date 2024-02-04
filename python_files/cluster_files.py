@@ -13,21 +13,17 @@ def get_files(path) -> dict:
 
 
 class ClusterFile:
-    def __init__(self, path, name=None):
+    def __init__(self, path):
         for i in [RAW_CLUSTERS_DIR, PADDED_CLUSTERS_DIR, PREPARED_READS_DIR]:
             if not os.path.exists(i):
                 os.makedirs(i)
 
-        if name is None:
-            self.name = str(os.path.basename(path))
-        else:
-            self.name = name
-        if self.name in os.listdir(RAW_CLUSTERS_DIR):
-            self.raw = path
-        else:
+        if os.path.basename(path) in os.listdir(RAW_CLUSTERS_DIR):
+            self.name: str = os.path.basename(path)
             self.raw = os.path.join(RAW_CLUSTERS_DIR, self.name)
-            os.rename(path, self.raw)
-
+            print(self.name, self.raw)
+        else:
+            print(f"{os.path.basename(path)} wasn't found in {RAW_CLUSTERS_DIR}!")
         self.padded = os.path.join(PADDED_CLUSTERS_DIR, self.name)
         self.prepared = os.path.join(PREPARED_READS_DIR, self.name)
 
@@ -35,9 +31,8 @@ class ClusterFile:
         self.prepare_clusters(silent=True)
 
     def get_clusters(self):
-        print(self.raw)
         with open(self.raw, "r") as f:
-            clusters = {i.split("\n*****************************\n")[0]: [j for j in i.split(
+            clusters = {i.strip().split("\n*****************************\n")[0]: [j for j in i.strip().split(
                 "\n*****************************\n")[1].split("\n")] for i in f.read().strip().split("\n\n\n")}
             return clusters
 
