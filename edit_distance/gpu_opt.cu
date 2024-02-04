@@ -538,7 +538,7 @@ int main(){
 
     cudaMemcpy(min_num, d_min_num, results_length * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(min_index, d_min_index, results_length * sizeof(int), cudaMemcpyDeviceToHost);
-    std::cout<< "settings: " << K_CLOSEST << "," << ETH << "," <<KMER << ",1"  << std::endl;
+    std::cout<< "settings: " << K_CLOSEST << "," << ETH << "," <<KMER << std::endl;
     std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
     for(int i = 0; i < num_reads; i++){
         std::cout << i << ", [";
