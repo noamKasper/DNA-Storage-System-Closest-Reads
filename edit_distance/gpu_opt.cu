@@ -154,7 +154,7 @@ __device__ int editDistance(const char* s, const char* t){
         for (int j = 1; j <= READ_LENGTH; j++) {
 
             int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                              min(arr[j] + (s[i - 1] != 'P'), arr[j - 1] + (t[i - 1] != 'P')));
+                              min(arr[j] + (s[i - 1] != 'P'), arr[j - 1] + (t[j - 1] != 'P')));
             diag = arr[j];
             arr[j] = new_val;
 
@@ -165,69 +165,69 @@ __device__ int editDistance(const char* s, const char* t){
 #else
     uchar4 arr[READ_LENGTH/4 + 1];
 
-        // Initialize arr to be the first row of the DP matrix
-        for (int j = 0; j <= READ_LENGTH; j+=4){
-            arr[j].x = j;
-            arr[j].y = j+1;
-            arr[j].z = j+2;
-            arr[j].w = j+3;
-        }
+    // Initialize arr to be the first row of the DP matrix
+    for (int j = 0; j <= READ_LENGTH; j+=4){
+        arr[j].x = j;
+        arr[j].y = j+1;
+        arr[j].z = j+2;
+        arr[j].w = j+3;
+    }
 
-        // Fill the remaining rows
-        for(int i = 1; i <= READ_LENGTH; i++) {
+    // Fill the remaining rows
+    for(int i = 1; i <= READ_LENGTH; i++) {
 
-            int diag = arr[0].x;
-            arr[0].x = i;
+        int diag = arr[0].x;
+        arr[0].x = i;
 
-            for (int j = 1; j <= READ_LENGTH; j++) {
-                switch (j%4){
-                    case 0:
-                        {
-                        // x
-                        int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                                  min(arr[j/4].x + (s[i - 1] != 'P'), arr[j/4 - 1].w + (t[i - 1] != 'P')));
-                        diag = arr[j/4].x;
-                        arr[j/4].x = new_val;
-                        }
-                        break;
-                    case 1:
-                        {
-                        // y
-                        int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                                  min(arr[j/4].y + (s[i - 1] != 'P'), arr[j/4].x + (t[i - 1] != 'P')));
-                        diag = arr[j/4].y;
-                        arr[j/4].y = new_val;
-                        }
-                        break;
-                    case 2:
-                        {
-                        // z
-                        int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                                  min(arr[j/4].z + (s[i - 1] != 'P'), arr[j/4].y + (t[i - 1] != 'P')));
-                        diag = arr[j/4].z;
-                        arr[j/4].z = new_val;
-                        }
-                        break;
-                    case 3:
-                        {
-                        // w
-                        int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                                  min(arr[j/4].w + (s[i - 1] != 'P'), arr[j/4].z + (t[i - 1] != 'P')));
-                        diag = arr[j/4].w;
-                        arr[j/4].w = new_val;
-                        }
-                        break;
-                }
+        for (int j = 1; j <= READ_LENGTH; j++) {
+            switch (j%4){
+                case 0:
+                    {
+                    // x
+                    int new_val = min(diag + (s[i - 1] != t[j - 1]),
+                              min(arr[j/4].x + (s[i - 1] != 'P'), arr[j/4 - 1].w + (t[j - 1] != 'P')));
+                    diag = arr[j/4].x;
+                    arr[j/4].x = new_val;
+                    }
+                    break;
+                case 1:
+                    {
+                    // y
+                    int new_val = min(diag + (s[i - 1] != t[j - 1]),
+                              min(arr[j/4].y + (s[i - 1] != 'P'), arr[j/4].x + (t[j - 1] != 'P')));
+                    diag = arr[j/4].y;
+                    arr[j/4].y = new_val;
+                    }
+                    break;
+                case 2:
+                    {
+                    // z
+                    int new_val = min(diag + (s[i - 1] != t[j - 1]),
+                              min(arr[j/4].z + (s[i - 1] != 'P'), arr[j/4].y + (t[j - 1] != 'P')));
+                    diag = arr[j/4].z;
+                    arr[j/4].z = new_val;
+                    }
+                    break;
+                case 3:
+                    {
+                    // w
+                    int new_val = min(diag + (s[i - 1] != t[j - 1]),
+                              min(arr[j/4].w + (s[i - 1] != 'P'), arr[j/4].z + (t[j - 1] != 'P')));
+                    diag = arr[j/4].w;
+                    arr[j/4].w = new_val;
+                    }
+                    break;
             }
         }
+    }
 
-        int last =  READ_LENGTH/4;
-        switch (READ_LENGTH % 4){
-            case 0: return arr[last].x;
-            case 1: return arr[last].y;
-            case 2: return arr[last].z;
-            case 3: return arr[last].w;
-        }
+    int last =  READ_LENGTH/4;
+    switch (READ_LENGTH % 4){
+        case 0: return arr[last].x;
+        case 1: return arr[last].y;
+        case 2: return arr[last].z;
+        case 3: return arr[last].w;
+    }
 
 #endif
 }
@@ -486,7 +486,7 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
 }
 
 int main(){
-//    cudaSetDevice(4);
+    cudaSetDevice(4);
 
     std::string readsStr;
     std::cin >> readsStr;

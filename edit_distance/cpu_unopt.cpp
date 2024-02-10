@@ -23,7 +23,7 @@ int editDistance(const char* s, const char* t){
         for (int j = 1; j <= READ_LENGTH; j++) {
 
             int new_val = std::min(diag + (s[i - 1] != t[j - 1]),
-                              std::min(arr[j] + (s[i - 1] != 'P'), arr[j - 1] + (t[i - 1] != 'P')));
+                              std::min(arr[j] + (s[i - 1] != 'P'), arr[j - 1] + (t[j - 1] != 'P')));
             diag = arr[j];
             arr[j] = new_val;
 
