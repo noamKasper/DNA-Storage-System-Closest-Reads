@@ -292,6 +292,41 @@ __device__ bool isInArr(int x, int *arr, int length){
     }
     return false;
 }
+/**
+ * calculates the max value in an array efficiently (returns it's index)
+ */
+__device__ int calcMaxIdx(int* arr, int length){
+    __shared__ int indices[THREADS_PER_BLOCK];
+    indices[threadIdx.x] = threadIdx.x;
+
+    if (threadIdx.x < length) {
+        if (length % 2 != 0){
+            int index = indices[0];
+            int value = arr[index];
+            int compareIndex = indices[length - 1];
+            int compareValue = arr[compareIndex];
+            if (compareValue > value) {
+                indices[0] = compareIndex;
+            }
+        }
+        int offset = length / 2;
+
+        while (offset > 0) {
+            if (threadIdx.x < offset) {
+                int index = indices[threadIdx.x];
+                int value = arr[index];
+                int compareIndex = indices[threadIdx.x + offset];
+                int compareValue = arr[compareIndex];
+                if (compareValue > value) {
+                    indices[threadIdx.x] = compareIndex;
+                }
+            }
+            offset /= 2;
+        }
+    }
+    __syncthreads();
+    return indices[0];
+}
 
 __global__ void findClosest(const char *reads, int *min_num, int *min_index, Histogram *histograms, IndexTable *index_table, int *read_chunk){
     __shared__ CyclicBuffer <2 * THREADS_PER_BLOCK, int> samplesBuffer;
@@ -302,7 +337,6 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
     __shared__ int closestDistsMaxIdx;
     __shared__ int closestDists[K_CLOSEST];
     __shared__ int closestDistsIdx[K_CLOSEST];
-    __shared__ int distIndices[K_CLOSEST];
     __shared__ int distances[THREADS_PER_BLOCK];
     __shared__ int count;
     __shared__ char read[READ_LENGTH];
@@ -363,46 +397,14 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
 
                 distances[threadIdx.x] = editDistance(read, (reads + READ_LENGTH * (samplesBuffer.get(threadIdx.x))));
                 __syncthreads();
-                for(int i = 0; i < THREADS_PER_BLOCK; i++){
-                    if (distances[i] < closestDists[closestDistsMaxIdx]){
+                for(int j = 0; j < THREADS_PER_BLOCK; j++){
+                    if (distances[j] < closestDists[closestDistsMaxIdx]){
 
-                        closestDistsIdx[closestDistsMaxIdx] = samplesBuffer.get(i);
-                        closestDists[closestDistsMaxIdx] = distances[i];
+                        closestDistsIdx[closestDistsMaxIdx] = samplesBuffer.get(j);
+                        closestDists[closestDistsMaxIdx] = distances[j];
 
                         // find the maximum number in closestDists
-                        if (threadIdx.x < K_CLOSEST) {
-                            distIndices[threadIdx.x] = threadIdx.x;
-
-                            if (K_CLOSEST % 2 != 0){
-                                int index = distIndices[0];
-                                int value = closestDists[index];
-                                int compareIndex = distIndices[K_CLOSEST - 1];
-                                int compareValue = closestDists[compareIndex];
-                                if (compareValue > value) {
-                                    distIndices[0] = compareIndex;
-                                }
-                            }
-                            int offset = K_CLOSEST / 2;
-
-                            while (offset > 0) {
-                                if (threadIdx.x < offset) {
-                                    int index = distIndices[threadIdx.x];
-                                    int value = closestDists[index];
-                                    int compareIndex = distIndices[threadIdx.x + offset];
-                                    int compareValue = closestDists[compareIndex];
-                                    if (compareValue > value) {
-                                        distIndices[threadIdx.x] = compareIndex;
-                                    }
-                                }
-                                offset /= 2;
-
-                            }
-
-                            if (threadIdx.x == 0) {
-                                closestDistsMaxIdx = distIndices[0];
-                            }
-                        }
-                        __syncthreads();
+                        closestDistsMaxIdx = calcMaxIdx(closestDists, K_CLOSEST);
                     }
                 }
                 __syncthreads();
@@ -433,51 +435,18 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
     // empty samplesBuffer one last time
     if(samplesBuffer.length > 0) {
         distances[threadIdx.x] = (threadIdx.x < samplesBuffer.length) ? editDistance(read, (reads + READ_LENGTH * (samplesBuffer.get(threadIdx.x)))) : READ_LENGTH;
-
         __syncthreads();
-        for(int i = 0; i < THREADS_PER_BLOCK; i++) {
-            if (distances[i] < closestDists[closestDistsMaxIdx]) {
-                closestDistsIdx[closestDistsMaxIdx] = samplesBuffer.get(i);
-                closestDists[closestDistsMaxIdx] = distances[i];
+        for(int j = 0; j < THREADS_PER_BLOCK; j++) {
+            if (distances[j] < closestDists[closestDistsMaxIdx]) {
+                closestDistsIdx[closestDistsMaxIdx] = samplesBuffer.get(j);
+                closestDists[closestDistsMaxIdx] = distances[j];
 
                 // find the maximum number in closestDists
-                if (threadIdx.x < K_CLOSEST) {
-                    distIndices[threadIdx.x] = threadIdx.x;
-
-                    if (K_CLOSEST % 2 != 0){
-                        int index = distIndices[0];
-                        int value = closestDists[index];
-                        int compareIndex = distIndices[K_CLOSEST - 1];
-                        int compareValue = closestDists[compareIndex];
-                        if (compareValue > value) {
-                            distIndices[0] = compareIndex;
-                        }
-                    }
-                    int offset = K_CLOSEST / 2;
-
-                    while (offset > 0) {
-                        if (threadIdx.x < offset) {
-                            int index = distIndices[threadIdx.x];
-                            int value = closestDists[index];
-                            int compareIndex = distIndices[threadIdx.x + offset];
-                            int compareValue = closestDists[compareIndex];
-                            if (compareValue > value) {
-                                distIndices[threadIdx.x] = compareIndex;
-                            }
-                        }
-                        offset /= 2;
-
-                    }
-
-                    if (threadIdx.x == 0) {
-                        closestDistsMaxIdx = distIndices[0];
-                    }
-                }
-                __syncthreads();
+                closestDistsMaxIdx = calcMaxIdx(closestDists, K_CLOSEST);
             }
         }
     }
-// TODO: change so we give closestDists and minClosestIdx
+
     if(threadIdx.x < K_CLOSEST) {
         min_num[blockIdx.x * K_CLOSEST + threadIdx.x] = closestDists[threadIdx.x];
         min_index[blockIdx.x * K_CLOSEST + threadIdx.x] = closestDistsIdx[ threadIdx.x];
