@@ -2,7 +2,6 @@ from automate_reruns import Compiler, run_program_and_save_output, GPU_OPT_PATH,
 from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, get_files
 import os
 
-temp_exec_path = "/home/noam/alphaProject/a.out"
 N_CLOSEST_RESULTS_PATH = "/home/noam/alphaProject/results/n_closest_results"
 
 
@@ -12,5 +11,5 @@ if __name__ == "__main__":
         print(file_name)
         file_results_path = os.path.join(N_CLOSEST_RESULTS_PATH, file_name + ".csv")
         compiler = Compiler(read_length=file.get_max_read_length())
-        compiler.compile(code_path=GPU_OPT_PATH,  output_path=temp_exec_path)
-        run_program_and_save_output(file.prepared, file_results_path, exec_path=temp_exec_path)
+        compiler.compile(code_path=GPU_OPT_PATH,  output_path=EXECUTABLE_PATH)
+        run_program_and_save_output(file.prepared, file_results_path, exec_path=EXECUTABLE_PATH)

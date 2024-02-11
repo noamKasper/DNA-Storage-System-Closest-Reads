@@ -6,6 +6,8 @@ from n_closest_testing import N_CLOSEST_RESULTS_PATH
 from cluster_files import ClusterFile
 
 POST_PROCESSING_PATH = "/home/noam/alphaProject/results/n_closest_results/post_processing"
+POST_PROCESSING_FULL_RESULTS_PATH = os.path.join(POST_PROCESSING_PATH, "full_results.csv")
+
 
 if __name__ == "__main__":
     results_df = pd.DataFrame(columns=["ST", "SF", "LT", "LF"])
@@ -27,5 +29,5 @@ if __name__ == "__main__":
         results_df.loc[file_name.replace(".csv", "")] = result_file.get_results()
         print("file is calculated!")
     results_df = results_df.fillna(0)
-    results_df.to_csv(os.path.join(POST_PROCESSING_PATH, "full_results.csv"), index=True, index_label="dataset")
+    results_df.to_csv(POST_PROCESSING_FULL_RESULTS_PATH, index=True, index_label="dataset")
     print("done!")
