@@ -14,6 +14,7 @@ class ResultFile:
         self.mean_thread_edit_calcs = None
         self.total_runtime = None
         self.message = None
+        self.divide_by = 1
         self.df = pd.read_csv(path, skiprows=1)
         self.get_settings()
 
@@ -27,6 +28,8 @@ class ResultFile:
                     self.eth, self.k, self.duped_reads_buffer, self.mean_thread_runtime, self.mean_thread_edit_calcs, self.total_runtime, self.message = settings
                 elif len(settings) == 6:
                     self.eth, self.k, self.duped_reads_buffer, self.mean_thread_runtime, self.mean_thread_edit_calcs, self.total_runtime = settings
+                elif len(settings) == 3:
+                    self.divide_by, self.total_runtime, self.message = settings
                 else:
                     throw("Error while reading file settings")
 
@@ -43,17 +46,29 @@ class ResultFile:
                 for _ in cluster.split("\n*****************************\n")[1].split():
                     strand_read_map.append(strandIdx)
 
-        self.df["strand"] = pd.Series(strand_read_map)
-
+        strands = pd.Series(strand_read_map)
+        self.df = self.df.reindex(strands.index, fill_value=-1)
+        self.df["strand"] = strands
+        self.df.fillna(-1)
+        print(self.df.tail())
         mask = self.df['closest read'] != -1
 
         closest_read_indices = self.df.loc[mask, 'closest read'].values
-        closest_read_strands = self.df.loc[closest_read_indices, 'strand'].values
+        closest_read_strands = strands[closest_read_indices].values
 
         classifications = pd.Series(False, index=self.df.index)  # Initialize with False for all rows
-        classifications[mask] = self.df.loc[mask, 'strand'].values == closest_read_strands
+        classifications[mask] = strands[mask].values == closest_read_strands
 
         self.df["classification"] = classifications
+
+    def inaccuracy(self):
+        if "classification" not in self.df.columns:
+            print("complete df first!")
+            return -1
+
+        length = len(self.df.index) // self.divide_by
+        inaccuracy = 1 - self.df.loc[: length, "classification"].sum() / length
+        return inaccuracy
 
 
 class NResultsFile:
@@ -67,7 +82,6 @@ class NResultsFile:
         self.cluster_file = None
         self.df: pd.DataFrame = pd.read_csv(path, skiprows=1)
         self.completed_df: pd.DataFrame | None = None
-
         self.get_settings()
 
     def get_settings(self):

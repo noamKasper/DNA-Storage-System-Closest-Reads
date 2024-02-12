@@ -45,7 +45,7 @@ int main() {
 
     int minNum = num_reads + 1;
     int minIdx = -1;
-    std::cout<< "settings: " <<-1 << "," <<-1 << "," << -1 << "," << -1 << "," << num_reads << std::endl;
+    std::cout<< "settings: " << DIVIDE_DATA_BY << std::endl;
 
     std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
 

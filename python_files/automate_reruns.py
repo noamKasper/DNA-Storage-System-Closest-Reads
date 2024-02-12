@@ -11,21 +11,22 @@ EXECUTABLE_PATH = '/home/noam/alphaProject/edit_distance/program'
 
 
 class Compiler:
-    def __init__(self, read_length=115, compiler_type="nvcc", k=None, eth=None, used_reads_buffer_size=None, uchar_optimization: bool = True, force_uchar=False, divide_data_by: int = 1):
-        self._compiler_type = compiler_type
-        self._parameters = {"READ_LENGTH": f"READ_LENGTH={read_length}",
-                            "KMER": f"KMER={k}" if (k is not None) else "",
-                            "ETH": f"ETH={eth}" if (eth is not None) else "",
-                            "USED_READS_SIZE": f"USED_READS_SIZE={used_reads_buffer_size}" if (used_reads_buffer_size is not None) else "",
-                            "UCHAR4_OPTIMIZATION": f"UCHAR4_OPTIMIZATION={str(uchar_optimization).lower()}",
-                            "FORCE_UCHAR4_OPTIMIZATION": f"FORCE_UCHAR4_OPTIMIZATION={str(force_uchar).lower()}",
-                            "DIVIDE_DATA_BY": f"DIVIDE_DATA_BY={divide_data_by}"}
+    def __init__(self, read_length, compiler_type="nvcc", params=None, o3_opt=False):
+        if params is None:
+            params = {}
+        self.__compiler_type = compiler_type
+        self.params = params
+        self.params["READ_LENGTH"] = read_length
+        self.o3 = o3_opt
 
     def compile(self, output_path, code_path):
-        command = f"{self._compiler_type} {code_path} -o {output_path}"
-        for i in self._parameters.values():
-            if i:
-                command += " -D" + i
+        command = f"{self.__compiler_type} {code_path} -o {output_path} "
+        param_list = []
+        for param, value in self.params.items():
+            param_list.append(f"-D{param}={value}")
+        command += " ".join(param_list)
+        if self.o3:
+            command += " -O3"
         result = subprocess.run(command, shell=True)
 
         if result.returncode != 0:

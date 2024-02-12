@@ -17,6 +17,8 @@ if __name__ == "__main__":
     plt.figure(figsize=(10, 6))
     ax = sns.barplot(data=df, x="dataset", y="count", hue="classification type")
     ax.set_yscale('log')  # Set y-axis to logarithmic scale
-    plt.title('Classification Count per Database')
+    plt.xlabel('Database')
+    plt.ylabel('Count (log scale)')
+    plt.title('Classification Count per Database N=5')
     plt.savefig(N_CLOSEST_FIG_FOLDER)
 

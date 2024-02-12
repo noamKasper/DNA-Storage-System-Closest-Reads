@@ -6,23 +6,28 @@ K = 12
 ETH = 10
 DIVIDE_BY = 1000
 PERFORMANCE_RESULTS_PATH = '/home/noam/alphaProject/results/performance_comparison_results'
+RUNNING_TIME = 900  # in seconds
 
 
-def do_performance_comparison(file: ClusterFile, results_dir_path: str):
+def do_performance_comparison(file: ClusterFile, results_dir_path: str, divide_by = DIVIDE_BY, gpu_opt=True, gpu=True, cpu=True):
+    cuda_opt_compiler = Compiler(read_length=file.get_max_read_length())
     cuda_compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=DIVIDE_BY)
-    cpp_compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=DIVIDE_BY, compiler_type="g++")
+    cpp_compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=divide_by, compiler_type="g++", o3_opt=True)
 
-    print("gpu+")
-    cuda_compiler.compile(code_path=GPU_OPT_BENCH_PATH, output_path=EXECUTABLE_PATH)
-    run_program_and_save_output(file.prepared, os.path.join(results_dir_path, "gpu_opt.csv"))
+    if gpu_opt:
+        print("gpu+")
+        cuda_opt_compiler.compile(code_path=GPU_OPT_BENCH_PATH, output_path=EXECUTABLE_PATH)
+        run_program_and_save_output(file.prepared, os.path.join(results_dir_path, "gpu_opt.csv"))
 
-    print("gpu")
-    cuda_compiler.compile(code_path=GPU_UNOPT_PATH, output_path=EXECUTABLE_PATH)
-    run_program_and_save_output(file.prepared, os.path.join(results_dir_path, "gpu_unopt.csv"))
+    if gpu:
+        print("gpu")
+        cuda_compiler.compile(code_path=GPU_UNOPT_PATH, output_path=EXECUTABLE_PATH)
+        run_program_and_save_output(file.prepared, os.path.join(results_dir_path, "gpu_unopt.csv"))
 
-    print("cpu")
-    cpp_compiler.compile(code_path=CPU_UNOPT_PATH, output_path=EXECUTABLE_PATH)
-    run_program_and_save_output(file.prepared, os.path.join(results_dir_path, "cpu_unopt.csv"))
+    if cpu:
+        print("cpu")
+        cpp_compiler.compile(code_path=CPU_UNOPT_PATH, output_path=EXECUTABLE_PATH)
+        run_program_and_save_output(file.prepared, os.path.join(results_dir_path, "cpu_unopt.csv"))
 
 
 if __name__ == "__main__":
@@ -33,5 +38,8 @@ if __name__ == "__main__":
 
         if not os.path.exists(file_results_path):
             os.makedirs(file_results_path)
-
-        do_performance_comparison(file, file_results_path)
+        read_length = file.get_max_read_length()
+        num_reads = file.get_num_reads()
+        divide_by = int(((read_length**2) * (num_reads**2)) / ((10**9) * (RUNNING_TIME/3)))
+        print(divide_by)
+        do_performance_comparison(file, file_results_path, gpu_opt=True, gpu=True, cpu=False)

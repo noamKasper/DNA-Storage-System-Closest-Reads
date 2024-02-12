@@ -171,7 +171,7 @@ int main(){
     cudaMemcpy(min_num, d_min_num, num_reads * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(min_index, d_min_index, num_reads * sizeof(int), cudaMemcpyDeviceToHost);
 
-    std::cout<< "settings: " <<-1 << "," <<-1 << "," << -1 << "," << -1 << "," << num_reads << std::endl;
+    std::cout<< "settings: " << DIVIDE_DATA_BY << std::endl;
     std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
     for(int i = 0; i < num_reads; i++){
         std::cout << i << ","<< min_index[i]<< ","<< min_num[i] << std::endl;

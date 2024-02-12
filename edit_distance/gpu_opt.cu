@@ -22,9 +22,7 @@
 # define DIVIDE_DATA_BY 1
 # endif
 
-# if !defined UCHAR4_OPTIMIZATION
-# define UCHAR4_OPTIMIZATION true
-# endif
+
 
 # if !defined FORCE_UCHAR4_OPTIMIZATION
 # define FORCE_UCHAR4_OPTIMIZATION false
