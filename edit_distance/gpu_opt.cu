@@ -34,6 +34,8 @@
 # define K_CLOSEST 5
 # endif
 
+#define NEW_VAL(s_val, t_val) min(diag + (s[i - 1] != t[j - 1]), min(s_val + (s[i - 1] != 'P'),  t_val + (t[j - 1] != 'P')));
+
 const int THREADS_PER_BLOCK = 32;
 
 struct Histogram{
@@ -167,10 +169,10 @@ __device__ int editDistance(const char* s, const char* t){
 
     // Initialize arr to be the first row of the DP matrix
     for (int j = 0; j <= READ_LENGTH; j+=4){
-        arr[j].x = j;
-        arr[j].y = j+1;
-        arr[j].z = j+2;
-        arr[j].w = j+3;
+        arr[j/4].x = j;
+        arr[j/4].y = j+1;
+        arr[j/4].z = j+2;
+        arr[j/4].w = j+3;
     }
 
     // Fill the remaining rows
@@ -182,40 +184,36 @@ __device__ int editDistance(const char* s, const char* t){
         for (int j = 1; j <= READ_LENGTH; j++) {
             switch (j%4){
                 case 0:
-                    {
+                {
                     // x
-                    int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                              min(arr[j/4].x + (s[i - 1] != 'P'), arr[j/4 - 1].w + (t[j - 1] != 'P')));
+                    int new_val = NEW_VAL(arr[j/4].x, arr[j/4 - 1].w);
                     diag = arr[j/4].x;
                     arr[j/4].x = new_val;
-                    }
+                }
                     break;
                 case 1:
-                    {
+                {
                     // y
-                    int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                              min(arr[j/4].y + (s[i - 1] != 'P'), arr[j/4].x + (t[j - 1] != 'P')));
+                    int new_val = NEW_VAL(arr[j/4].y, arr[j/4].x);
                     diag = arr[j/4].y;
                     arr[j/4].y = new_val;
-                    }
+                }
                     break;
                 case 2:
-                    {
+                {
                     // z
-                    int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                              min(arr[j/4].z + (s[i - 1] != 'P'), arr[j/4].y + (t[j - 1] != 'P')));
+                    int new_val = NEW_VAL(arr[j/4].z, arr[j/4].y);
                     diag = arr[j/4].z;
                     arr[j/4].z = new_val;
-                    }
+                }
                     break;
                 case 3:
-                    {
+                {
                     // w
-                    int new_val = min(diag + (s[i - 1] != t[j - 1]),
-                              min(arr[j/4].w + (s[i - 1] != 'P'), arr[j/4].z + (t[j - 1] != 'P')));
+                    int new_val = NEW_VAL(arr[j/4].w, arr[j/4].z);
                     diag = arr[j/4].w;
                     arr[j/4].w = new_val;
-                    }
+                }
                     break;
             }
         }
