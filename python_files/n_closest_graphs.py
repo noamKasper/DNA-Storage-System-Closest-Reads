@@ -1,25 +1,10 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 from brokenaxes import brokenaxes
 from n_closest_post import POST_PROCESSING_FULL_RESULTS_PATH
 
 N_CLOSEST_FIG_FOLDER = "/home/noam/alphaProject/figs/n_closest"
-
-def bad_fig(df, path):
-    df.reset_index(inplace=True)
-    df = pd.melt(df, id_vars="dataset", var_name='classification type', value_name='count')
-    df = df.iloc[4:, :]
-
-    print(df)
-    plt.figure(figsize=(10, 6))
-    ax = sns.barplot(data=df, x="dataset", y="count", hue="classification type")
-    ax.set_yscale('log')  # Set y-axis to logarithmic scale
-    plt.xlabel('Database')
-    plt.ylabel('Count (log scale)')
-    plt.title('Classification Count per Database N=5')
-    plt.savefig(path)
 
 
 def improved_stack_plot(df: pd.DataFrame, path, ascending=True, text_size=12, text_size_amp=2):
@@ -51,7 +36,6 @@ def improved_stack_plot(df: pd.DataFrame, path, ascending=True, text_size=12, te
     bax.tick_params(axis='both', which='major', labelsize=text_size)  # Increase tick label font size
     bax.legend(fontsize=text_size, loc='best', reverse=True).set_zorder(1.5)  # Set legend font size
     bax.locator_params(axis='x', nbins=len(databases))
-
 
     plt.savefig(path)
 
