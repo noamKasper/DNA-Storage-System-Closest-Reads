@@ -9,10 +9,11 @@ PERFORMANCE_RESULTS_PATH = '/home/noam/alphaProject/results/performance_comparis
 RUNNING_TIME = 900  # in seconds
 
 
-def do_performance_comparison(file: ClusterFile, results_dir_path: str, divide_by = DIVIDE_BY, gpu_opt=True, gpu=True, cpu=True):
-    cuda_opt_compiler = Compiler(read_length=file.get_max_read_length())
-    cuda_compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=DIVIDE_BY)
-    cpp_compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=divide_by, compiler_type="g++", o3_opt=True)
+def do_performance_comparison(file: ClusterFile, results_dir_path: str, divide_by=DIVIDE_BY, gpu_opt=True, gpu=True, cpu=True):
+    params = {"DIVIDE_DATA_BY":divide_by}
+    cuda_opt_compiler = Compiler(read_length=file.get_max_read_length(), params=params)
+    cuda_compiler = Compiler(read_length=file.get_max_read_length(), params=params)
+    cpp_compiler = Compiler(read_length=file.get_max_read_length(), params=params, compiler_type="g++", o3_opt=True)
 
     if gpu_opt:
         print("gpu+")
@@ -42,4 +43,5 @@ if __name__ == "__main__":
         num_reads = file.get_num_reads()
         divide_by = int(((read_length**2) * (num_reads**2)) / ((10**9) * (RUNNING_TIME/3)))
         print(divide_by)
-        do_performance_comparison(file, file_results_path, gpu_opt=True, gpu=True, cpu=False)
+        do_performance_comparison(file, file_results_path, divide_by=100, gpu_opt=True, gpu=True, cpu=False)
+    print("done!")

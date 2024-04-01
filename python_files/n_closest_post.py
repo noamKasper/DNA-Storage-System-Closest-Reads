@@ -1,15 +1,15 @@
 import os
-
 import pandas as pd
+
 from results_files import NResultsFile
 from n_closest_testing import N_CLOSEST_RESULTS_PATH
-from cluster_files import ClusterFile
+from cluster_files import ClusterFile, get_files, RAW_CLUSTERS_DIR
 
 POST_PROCESSING_PATH = "/home/noam/alphaProject/results/n_closest_results/post_processing"
 POST_PROCESSING_FULL_RESULTS_PATH = os.path.join(POST_PROCESSING_PATH, "full_results.csv")
 
 
-if __name__ == "__main__":
+def post_results():
     results_df = pd.DataFrame(columns=["ST", "SF", "LT", "LF"])
     for file_name in os.listdir(N_CLOSEST_RESULTS_PATH):
         print(file_name)
@@ -30,4 +30,22 @@ if __name__ == "__main__":
         print("file is calculated!")
     results_df = results_df.fillna(0)
     results_df.to_csv(POST_PROCESSING_FULL_RESULTS_PATH, index=True, index_label="dataset")
+
+
+if __name__ == "__main__":
+    files = get_files(RAW_CLUSTERS_DIR)
+    df = pd.DataFrame()
+    df.index.name = "N"
+    for file_name, file in files.items():
+        times = pd.Series(dtype=float)
+        db_path = os.path.join(N_CLOSEST_RESULTS_PATH, file_name)
+        for result_name in os.listdir(db_path):
+            result_path = os.path.join(db_path, result_name)
+            result_file = NResultsFile(result_path)
+            times.loc[result_file.n] = result_file.total_runtime
+        df[file_name] = times
+    df = df.sort_index()
+    df = df.transpose()
+    print(df)
+    df.to_csv(os.path.join(POST_PROCESSING_PATH, "times.csv"))
     print("done!")

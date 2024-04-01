@@ -24,7 +24,9 @@ class ResultFile:
             if settings.startswith("settings: "):
                 settings = settings.replace("settings: ", "").split(",")
                 settings = tuple(map(lambda x: float(x) if x.replace(".", "").isnumeric() else x, settings))
-                if len(settings) == 7:
+                if len(settings) == 8:
+                    self.eth, self.k, self.divide_by, self.duped_reads_buffer, self.mean_thread_runtime, self.mean_thread_edit_calcs, self.total_runtime, self.message = settings
+                elif len(settings) == 7:
                     self.eth, self.k, self.duped_reads_buffer, self.mean_thread_runtime, self.mean_thread_edit_calcs, self.total_runtime, self.message = settings
                 elif len(settings) == 6:
                     self.eth, self.k, self.duped_reads_buffer, self.mean_thread_runtime, self.mean_thread_edit_calcs, self.total_runtime = settings
@@ -50,7 +52,6 @@ class ResultFile:
         self.df = self.df.reindex(strands.index, fill_value=-1)
         self.df["strand"] = strands
         self.df.fillna(-1)
-        print(self.df.tail())
         mask = self.df['closest read'] != -1
 
         closest_read_indices = self.df.loc[mask, 'closest read'].values

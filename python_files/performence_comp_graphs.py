@@ -15,6 +15,7 @@ def inaccuracy_plot(df, path):
     title = f"Algorithm Comparisons: Inaccuracy Result"
     fig, axes = plt.subplots(2, 2, figsize=(18, 14))
     fig.suptitle(title)
+    df = df[df["algorithm"] != "cpu unoptimized"]
     datasets = df["dataset"].unique()
     axes = axes.flatten()
     for i, dataset in enumerate(datasets):
@@ -23,6 +24,7 @@ def inaccuracy_plot(df, path):
         sns.barplot(data=dataset_df, x="algorithm", y="inaccuracy", ax=ax)
         for j in ax.containers:
             ax.bar_label(j, )
+        ax.set_ylim(bottom=0)
         ax.set_xlabel('Algorithm')
         ax.set_ylabel('Inaccuracy')
         ax.set_title(dataset)
@@ -43,6 +45,7 @@ def runtime_plot(df, path):
         sns.barplot(data=dataset_df, x="algorithm", y="total runtime", ax=ax)
         for j in ax.containers:
             ax.bar_label(j, )
+        ax.set_ylim(bottom=0)
         ax.set_xlabel('Algorithm')
         ax.set_ylabel('Runtime (seconds)')
         ax.set_title(dataset)
@@ -65,8 +68,17 @@ if __name__ == "__main__":
             result.complete_df(file.raw)
             row = {"dataset": file_name, "algorithm": name, "total runtime": result.total_runtime * result.divide_by, "inaccuracy": result.inaccuracy()}
             df.loc[len(df.index)] = row
+            print(name, result.divide_by)
+        if "Full" in file_name:
+            gpu_opt = algorithms["gpu optimized"]
+            gpu = algorithms["gpu unoptimized"]
+            length_opt = len(gpu_opt.df.index) // gpu_opt.divide_by
+            length = len(gpu.df.index) // gpu.divide_by
+            gpu_opt_index = pd.Index((gpu_opt.df.loc[: length_opt, "classification"][~gpu_opt.df.loc[: length_opt, "classification"]]).index)
+            gpu_index = pd.Index((gpu.df.loc[: length, "classification"][~gpu.df.loc[: length, "classification"]]).index)
+            print(gpu_index.difference(gpu_opt_index))
+            print(gpu_opt_index.difference(gpu_index))
 
-    print(df)
     inaccuracy_plot(df, os.path.join(PERFORMANCE_GRAPHS_PATH, "inaccuracy.png"))
-    runtime_plot(df, os.path.join(PERFORMANCE_GRAPHS_PATH, "runtime.png"))
+    # runtime_plot(df, os.path.join(PERFORMANCE_GRAPHS_PATH, "runtime.png"))
     print("done!")
