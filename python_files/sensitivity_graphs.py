@@ -75,13 +75,13 @@ def sensitivity_graphs(path: str, k: bool = False, eth: bool = False, fontsize=1
         # fix legend
         ax.legend(loc="upper left")
         ax.set_ylabel("Inaccuracy", fontsize=fontsize + fontsize_amp)
-        ax.set_xlabel("K", fontsize=fontsize + fontsize_amp)
+        ax.set_xlabel(column, fontsize=fontsize + fontsize_amp)
         ax.ticklabel_format(style='plain', axis='y')
         ax.locator_params(axis='x', nbins=len(df.index))
         # create Time lineplot with same axis
         ax2 = ax.twinx()
         sns.lineplot(x=column, y='Time', data=df, label='Time', ax=ax2, color='orange', marker="o")
-        ax2.set_xlabel("K", fontsize=fontsize + fontsize_amp)
+        ax2.set_xlabel(column, fontsize=fontsize + fontsize_amp)
         ax2.lines[0].set_linestyle("--")
         # fix plot
         ax2.legend(loc='upper right')
@@ -91,7 +91,7 @@ def sensitivity_graphs(path: str, k: bool = False, eth: bool = False, fontsize=1
         ax.set_title(dir_name, fontsize=fontsize + fontsize_amp * 2)
 
     plt.ylim(bottom=0)
-    plt.tight_layout(pad=3)
+    plt.tight_layout(pad=2)
     plt.savefig(path)
     plt.clf()
 
