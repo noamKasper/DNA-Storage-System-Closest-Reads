@@ -62,15 +62,15 @@ if __name__ == "__main__":
             df.loc[len(df.index)] = row
             print(name, result.divide_by)
         # debugging
-        # if "Full" in file_name:
-        #     gpu_opt = algorithms["gpu optimized"]
-        #     gpu = algorithms["gpu unoptimized"]
-        #     length_opt = len(gpu_opt.df.index) // gpu_opt.divide_by
-        #     length = len(gpu.df.index) // gpu.divide_by
-        #     gpu_opt_index = pd.Index((gpu_opt.df.loc[: length_opt, "classification"][~gpu_opt.df.loc[: length_opt, "classification"]]).index)
-        #     gpu_index = pd.Index((gpu.df.loc[: length, "classification"][~gpu.df.loc[: length, "classification"]]).index)
-        #     print(gpu_index.difference(gpu_opt_index))
-        #     print(gpu_opt_index.difference(gpu_index))
+        if "Full" in file_name:
+            gpu_opt = algorithms["gpu +"]
+            gpu = algorithms["gpu -"]
+            length_opt = len(gpu_opt.df.index) // gpu_opt.divide_by
+            length = len(gpu.df.index) // gpu.divide_by
+            gpu_opt_index = pd.Index((gpu_opt.df.loc[: length_opt, "classification"][~gpu_opt.df.loc[: length_opt, "classification"]]).index)
+            gpu_index = pd.Index((gpu.df.loc[: length, "classification"][~gpu.df.loc[: length, "classification"]]).index)
+            print(gpu_index.difference(gpu_opt_index))
+            print(gpu_opt_index.difference(gpu_index))
 
     inaccuracy_plot(df, os.path.join(PERFORMANCE_GRAPHS_PATH, "inaccuracy.png"), size=(9, 7), fontsize=10)
     runtime_plot(df, os.path.join(PERFORMANCE_GRAPHS_PATH, "runtime.png"), fontsize=11.5)

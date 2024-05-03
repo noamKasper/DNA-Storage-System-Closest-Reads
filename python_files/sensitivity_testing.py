@@ -1,4 +1,4 @@
-from automate_reruns import Compiler, run_program_and_save_output, GPU_OPT_BENCH_PATH, EXECUTABLE_PATH
+from code_compiler import Compiler, run_program_and_save_output, GPU_OPT_PATH, EXECUTABLE_PATH
 from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, get_files
 import os
 
@@ -39,7 +39,7 @@ def sensitivity(file: ClusterFile, result_path: str, sens_range: iter, k=False, 
             else:
                 compiler = Compiler(read_length=file.get_max_read_length(), divide_data_by=DIVIDE_BY, eth=run, k=custom_k)
 
-        compiler.compile(code_path=GPU_OPT_BENCH_PATH, output_path=EXECUTABLE_PATH)
+        compiler.compile(code_path=GPU_OPT_PATH, output_path=EXECUTABLE_PATH)
         run_program_and_save_output(file.prepared, output_path)
 
 

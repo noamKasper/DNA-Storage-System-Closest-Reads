@@ -3,8 +3,8 @@ import subprocess
 from cluster_files import ClusterFile, RAW_CLUSTERS_DIR
 import time
 
-GPU_OPT_PATH = '/home/noam/alphaProject/edit_distance/gpu_opt.cu'
-GPU_OPT_BENCH_PATH = '/home/noam/alphaProject/edit_distance/gpu_opt_bench.cu'
+N_READS_GPU_OPT_PATH = '/home/noam/alphaProject/edit_distance/gpu_opt.cu'
+GPU_OPT_PATH = '/home/noam/alphaProject/edit_distance/gpu_opt_bench.cu'
 GPU_UNOPT_PATH = '/home/noam/alphaProject/edit_distance/gpu_unopt.cu'
 CPU_UNOPT_PATH = '/home/noam/alphaProject/edit_distance/cpu_unopt.cpp'
 EXECUTABLE_PATH = '/home/noam/alphaProject/edit_distance/program'

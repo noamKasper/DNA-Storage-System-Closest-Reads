@@ -13,10 +13,6 @@ SENSITIVITY_FIG_FOLDER = "/home/noam/alphaProject/figs/sensitivity"
 pd.set_option('display.float_format', '{:.20f}'.format)
 
 
-def set_tick_labels_fontsize(ax, fontsize):
-    pass
-
-
 def get_results_df(dataset_results_dir):
     df = pd.DataFrame(columns=["K", "ETH", "Inaccuracy", "Time"])
     result_paths = map(lambda file_name: os.path.join(dataset_results_dir, file_name), os.listdir(dataset_results_dir))
@@ -99,7 +95,7 @@ def sensitivity_graphs(path: str, k: bool = False, eth: bool = False, fontsize=1
 def complex_sensitivity(path: str, result: str, fontsize=12, fontsize_amp=2):
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(17, 10))
 
-    fig.suptitle("ETH K Comparisons", fontsize=fontsize + fontsize_amp * 3)
+    fig.suptitle("ETH Vs. K Comparisons", fontsize=fontsize + fontsize_amp * 3)
 
     # Flatten axes for easy indexing
     axes = axes.flatten()
@@ -127,7 +123,7 @@ def complex_sensitivity(path: str, result: str, fontsize=12, fontsize_amp=2):
             handle.set_label(f'K={handle.get_label()}')
         ax.legend(loc="upper left", title="Inaccuracy")
         ax.set_ylabel("Inaccuracy", fontsize=fontsize + fontsize_amp)
-        ax.set_xlabel("K", fontsize=fontsize + fontsize_amp)
+        ax.set_xlabel("ETH", fontsize=fontsize + fontsize_amp)
         ax.locator_params(axis='x', nbins=combined_df["ETH"].nunique())
         print(len(combined_df.index))
         print(ax.get_legend_handles_labels())
@@ -144,8 +140,6 @@ def complex_sensitivity(path: str, result: str, fontsize=12, fontsize_amp=2):
         ax2.set_ylabel("Time(Seconds)", fontsize=fontsize + fontsize_amp)
         ax2.set_yscale("log")
         ax.set_title(os.path.basename(dataset_path), fontsize=fontsize + fontsize_amp * 2)
-        set_tick_labels_fontsize(ax, fontsize)
-        set_tick_labels_fontsize(ax2, fontsize)
 
     plt.ylim(bottom=0)
     plt.tight_layout(pad=2)

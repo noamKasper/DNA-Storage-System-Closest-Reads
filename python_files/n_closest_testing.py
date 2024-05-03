@@ -1,4 +1,4 @@
-from automate_reruns import Compiler, run_program_and_save_output, GPU_OPT_PATH, EXECUTABLE_PATH
+from code_compiler import Compiler, run_program_and_save_output, N_READS_GPU_OPT_PATH, EXECUTABLE_PATH
 from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, get_files
 import os
 
@@ -13,7 +13,7 @@ def n_sensitivity_testing(path_, n_range: iter = range(1, 10)):
 
 def n_testing(path_, n: int = 5):
     compiler = Compiler(read_length=file.get_max_read_length(), params={"K_CLOSEST": n})
-    compiler.compile(code_path=GPU_OPT_PATH, output_path=EXECUTABLE_PATH)
+    compiler.compile(code_path=N_READS_GPU_OPT_PATH, output_path=EXECUTABLE_PATH)
     run_program_and_save_output(file.prepared, path_, exec_path=EXECUTABLE_PATH)
 
 

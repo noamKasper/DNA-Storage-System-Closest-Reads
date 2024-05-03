@@ -1,4 +1,4 @@
-from automate_reruns import Compiler, run_program_and_save_output, GPU_OPT_BENCH_PATH, GPU_UNOPT_PATH, CPU_UNOPT_PATH, EXECUTABLE_PATH
+from code_compiler import Compiler, run_program_and_save_output, GPU_OPT_PATH, GPU_UNOPT_PATH, CPU_UNOPT_PATH, EXECUTABLE_PATH
 from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, get_files
 import os
 
@@ -17,7 +17,7 @@ def do_performance_comparison(file: ClusterFile, results_dir_path: str, divide_b
 
     if gpu_opt:
         print("gpu+")
-        cuda_opt_compiler.compile(code_path=GPU_OPT_BENCH_PATH, output_path=EXECUTABLE_PATH)
+        cuda_opt_compiler.compile(code_path=GPU_OPT_PATH, output_path=EXECUTABLE_PATH)
         run_program_and_save_output(file.prepared, os.path.join(results_dir_path, "gpu_opt.csv"))
 
     if gpu:
