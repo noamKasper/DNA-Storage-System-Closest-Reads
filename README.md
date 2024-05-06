@@ -13,8 +13,10 @@
 
 ### Instalations
 
-In order to install the libraries used in python type the following code in the terminal.
-```pip install -r requirements.txt```
+In order to install the libraries used in python type the following code in the terminal:
+```
+>>> pip install -r requirements.txt
+```
 
 ### Organization
 
