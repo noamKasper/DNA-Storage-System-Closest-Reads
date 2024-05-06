@@ -7,9 +7,9 @@
 
 ### Dependencies
 
-1. CUDA version X
-2. Python version 3.0+ (tested with version X)
-3. Compiler for C++ (tested with version X)
+1. CUDA version 12.2
+2. Python version 3.0+ (tested with version 3.10)
+3. Compiler for C++ (tested with version 9.4)
 
 ### Instalations
 
