@@ -37,28 +37,42 @@ int editDistance(const char* s, const char* t){
 
 int main() {
 
+    // receive dataset as input
     std::string readsStr;
     std::cin >> readsStr;
     const char *reads = readsStr.c_str();
+
+    // get file length
     int reads_length = readsStr.length();
+
+    // calculate the number of reads in the dataset
     int num_reads = reads_length / READ_LENGTH;
 
     int minNum = num_reads + 1;
     int minIdx = -1;
+
+    // print info
     std::cout<< "settings: " << DIVIDE_DATA_BY << std::endl;
 
+    // print column titles
     std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
 
     for (int readIdx = 0; readIdx < (num_reads / DIVIDE_DATA_BY); readIdx++){
         for (int tempReadIdx = 0; tempReadIdx < num_reads; tempReadIdx++) {
             if (readIdx != tempReadIdx) {
+
+                // calculate edit distance
                 int edit_distance = editDistance((reads + READ_LENGTH * (readIdx)), (reads + READ_LENGTH * (tempReadIdx)));
+
+                // save the lowest edit distance and it's index
                 minIdx = (edit_distance < minNum) ? (tempReadIdx) : minIdx;
                 minNum = std::min(edit_distance, minNum);
-
             }
         }
+        // print row
         std::cout << readIdx << "," << minIdx << "," << minNum << std::endl;
+
+        // reset the lowest edit distance
         minNum = num_reads + 1;
         minIdx = -1;
     }

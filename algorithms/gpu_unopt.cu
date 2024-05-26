@@ -1,6 +1,5 @@
 #include <iostream>
 
-//const int READ_LENGTH = 115;
 const int THREADS_PER_BLOCK = 32;
 
 # if !defined DIVIDE_DATA_BY
@@ -116,6 +115,7 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, int
     __shared__ int minIdx;
     __shared__ char read[READ_LENGTH];
 
+    // initialize read minIdx and mid_distance
     if (threadIdx.x == 0) {
         min_distance = READ_LENGTH;
         minIdx = -1;
@@ -123,6 +123,9 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, int
     }
     __syncthreads();
 
+    // iterate over each other read
+    // calculate edit distance
+    // keep the read with the lowest edit distance
     for (int i = 0; i < num_reads; i += THREADS_PER_BLOCK) {
         int index = threadIdx.x + i;
         if (blockIdx.x != index && index < num_reads) {
@@ -145,31 +148,38 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, int
 }
 
 int main(){
-//    cudaSetDevice(4);
-
+    // receive dataset as input
     std::string readsStr;
     std::cin >> readsStr;
-    int reads_length = readsStr.length();
-
-    int num_reads = reads_length / READ_LENGTH;
     const char *reads = readsStr.c_str();
     char *d_reads; cudaMalloc(&d_reads,reads_length * sizeof(char));
     cudaMemcpy(d_reads, reads, reads_length * sizeof(char), cudaMemcpyHostToDevice);
 
-    // will be a list of the minimum edit distance for each read
+    // get file length
+    int reads_length = readsStr.length();
+
+    // calculate the number of reads in the dataset
+    int num_reads = reads_length / READ_LENGTH;
+
+    // initialize an array list of the minimum edit distance for each read
     int *min_num = (int*) malloc(num_reads * sizeof(int));
     int *d_min_num; cudaMalloc(&d_min_num, num_reads * sizeof(int));
 
-    // will be a list of the index of the minimum edit distance for each read
+    // initialize an array of the index of the minimum edit distance for each read
     int *min_index = (int*) malloc(num_reads * sizeof(int));
     int *d_min_index; cudaMalloc(&d_min_index, num_reads * sizeof(int));
-// divide by 4 blocks to split dataset
+
+    // for each read finds the closest read and its distance
     findClosest<<<num_reads/DIVIDE_DATA_BY, THREADS_PER_BLOCK>>>(d_reads,d_min_num, d_min_index, num_reads);
 
+    // copy results to CPU memory
     cudaMemcpy(min_num, d_min_num, num_reads * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(min_index, d_min_index, num_reads * sizeof(int), cudaMemcpyDeviceToHost);
 
+    // print info
     std::cout<< "settings: " << DIVIDE_DATA_BY << std::endl;
+
+    // print results
     std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
     for(int i = 0; i < num_reads; i++){
         std::cout << i << ","<< min_index[i]<< ","<< min_num[i] << std::endl;

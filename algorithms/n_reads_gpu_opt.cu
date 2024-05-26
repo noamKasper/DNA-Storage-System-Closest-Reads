@@ -231,6 +231,11 @@ __device__ int editDistance(const char* s, const char* t){
 }
 
 __constant__ int RHO[26] = {0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0};//possibilities
+
+/**
+ * Calculates the decimal value of a DNA sequence.
+ * @param dnaSeq
+ */
 __device__ int dnaToDecimal(const char* dnaSeq) {
     int decimalNum = 0;
     for (int i = KMER - 1; i >= 0; i--) {
@@ -240,6 +245,12 @@ __device__ int dnaToDecimal(const char* dnaSeq) {
     return decimalNum;
 }
 
+/**
+ * Calculates the base counts for each read.
+ * @param reads
+ * @param histograms
+ * @param num_reads
+ */
 __global__ void computeHistogram(const char *reads,Histogram *histograms, int *num_reads){
 
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -257,6 +268,12 @@ __global__ void computeHistogram(const char *reads,Histogram *histograms, int *n
 
 }
 
+/**
+ * Calculates the number of reads containing each KMER
+ * @param reads
+ * @param read_counts
+ * @param num_reads
+ */
 __global__ void computeReadCounts(const char *reads, int *read_counts, int *num_reads){
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index >= *num_reads) return;
@@ -267,6 +284,16 @@ __global__ void computeReadCounts(const char *reads, int *read_counts, int *num_
     }
 }
 
+/**
+ * initializes an array of IndexTable instances that for each KMER contains the first read in the read chunk and the number of reads containing the KMER
+ * @param reads
+ * @param read_counts
+ * @param tmp_read_counts
+ * @param read_chunk
+ * @param prefix
+ * @param index_table
+ * @param num_reads
+ */
 __global__ void computeIndexTable(const char *reads, int *read_counts, int *tmp_read_counts, int *read_chunk, int *prefix, IndexTable *index_table, int *num_reads){
     int read = blockIdx.x * blockDim.x + threadIdx.x;
     if (read >= *num_reads) return;
@@ -282,6 +309,13 @@ __global__ void computeIndexTable(const char *reads, int *read_counts, int *tmp_
     }
 }
 
+/**
+ * Checkes whether an item is in array
+ * @param x
+ * @param arr
+ * @param length
+ * @return true/false
+ */
 __device__ bool isInArr(int x, int *arr, int length){
     for(int i = 0; i<length; i++){
         if (arr[i] == x){
@@ -327,8 +361,12 @@ __device__ int calcMaxIdx(int* arr, int length){
 }
 
 __global__ void findClosest(const char *reads, int *min_num, int *min_index, Histogram *histograms, IndexTable *index_table, int *read_chunk){
+
+    // will contain all the potential closest reads
     __shared__ CyclicBuffer <2 * THREADS_PER_BLOCK, int> samplesBuffer;
-    samplesBuffer.reset();  // resets the buffer
+    samplesBuffer.reset();
+
+    // will contain the first USED_READS_SIZE(number) that were checked with edit distance
     __shared__ CyclicBuffer <USED_READS_SIZE, int> usedReads;
     usedReads.reset();
     
@@ -355,30 +393,32 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
     }
     __syncthreads();
 
+    // iterate over each KMER in the block's read
     for (int i = 0; i <= READ_LENGTH - KMER; i++) {
+        // copy the KMER to array
         char kmer[KMER];
         for (int j = 0; j < KMER; j++) kmer[j] = read[j + i];
+
         IndexTable kmer_reads = index_table[dnaToDecimal(kmer)];
 
+        // iterate over each read containing the current KMER
         for (int j = 0; j < kmer_reads.count; j += THREADS_PER_BLOCK) {
-//            printf("%d\n",kmer_reads.count);
             if (j + threadIdx.x < kmer_reads.count) {
 
                 int comp_read = read_chunk[kmer_reads.index + j + threadIdx.x];
                 count = 0;
                 if (blockIdx.x != comp_read && !usedReads.contains(comp_read) && !isInArr(comp_read, closestDistsIdx, K_CLOSEST) && !samplesBuffer.contains(comp_read)) {
+                    int length = samplesBuffer.length;
 
-                    int length = samplesBuffer.length;  //enables to know the current length
-                    // Compute histogram diff between our read and read comp_read
-
+                    // calculates base counts diff between block read and another read.
                     int diff = abs(histograms[blockIdx.x].numA - histograms[comp_read].numA) +
                                abs(histograms[blockIdx.x].numT - histograms[comp_read].numT) +
                                abs(histograms[blockIdx.x].numG - histograms[comp_read].numG) +
                                abs(histograms[blockIdx.x].numC - histograms[comp_read].numC);
-                    // If diff < 2*ETH, add to samples buffer
+
+                    // if diff is smaller the 2*ETH (this is the filter) add it to the buffer
                     if (diff < 2 * ETH) {
-                        int readBufferIdx = atomicAdd(&count,
-                                                      1);  //if I did normal add it would be overwritten, returns count before add
+                        int readBufferIdx = atomicAdd(&count, 1);
                         samplesBuffer.set(readBufferIdx + length, comp_read);
                     }
                 }
@@ -386,7 +426,7 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
             __syncthreads();
 
             if (threadIdx.x == 0) {
-                samplesBuffer.push(count);
+                samplesBuffer.push(count); //enlarges the length of the buffer
             }
             __syncthreads();
 
@@ -453,59 +493,85 @@ __global__ void findClosest(const char *reads, int *min_num, int *min_index, His
 }
 
 int main(){
-    cudaSetDevice(4);
 
+    // receive dataset as input
     std::string readsStr;
     std::cin >> readsStr;
-    int reads_length = readsStr.length();
-
-    int num_reads = reads_length / READ_LENGTH;
-    int *d_num_reads; cudaMalloc(&d_num_reads, sizeof(int));
-    cudaMemcpy(d_num_reads, &num_reads, sizeof(int), cudaMemcpyHostToDevice);
-
     const char *reads = readsStr.c_str();
     char *d_reads; cudaMalloc(&d_reads,reads_length * sizeof(char));
     cudaMemcpy(d_reads, reads, reads_length * sizeof(char), cudaMemcpyHostToDevice);
 
+    // get file length
+    int reads_length = readsStr.length();
+
+    // calculate the number of reads in the dataset
+    int num_reads = reads_length / READ_LENGTH;
+    int *d_num_reads; cudaMalloc(&d_num_reads, sizeof(int));
+    cudaMemcpy(d_num_reads, &num_reads, sizeof(int), cudaMemcpyHostToDevice);
+
+    // create histogram in the GPU memory
     Histogram *d_histograms; cudaMalloc(&d_histograms, num_reads * sizeof(Histogram));
 
+    // initialize an array of the counts of each KMER
     int *d_read_counts; cudaMalloc(&d_read_counts, std::pow(4,KMER) * sizeof(int)); cudaMemset(d_read_counts, 0, std::pow(4,KMER) * sizeof(int));
+
+    // initialize an array that sum of all the values before each value in the counts array.
+    // will be used to locate each KMER in the chunk array
     int *read_prefix = (int*) malloc(std::pow(4,KMER) * sizeof(int));
     int *d_read_prefix; cudaMalloc(&d_read_prefix, std::pow(4,KMER) * sizeof(int));
 
+    // creating a device(GPU) pointer enables to use reduce in the thrust library
     thrust::device_ptr<int> dev_ptr(d_read_counts);
 
+    // calculate the base counts for each read
     computeHistogram<<<num_reads/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads,d_histograms, d_num_reads);
 
+    // calculates the number of reads containing each KMER
     computeReadCounts<<<num_reads/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads, d_read_counts, d_num_reads);
 
-    int read_counts_sum = thrust::reduce(thrust::device, dev_ptr, dev_ptr + std::pow(4,KMER),0);// sum read_counts
-    thrust::exclusive_scan(thrust::device, dev_ptr, dev_ptr + std::pow(4,KMER), d_read_prefix);// create a prefix of read_counts
+    // sums all the values in read counts
+    int read_counts_sum = thrust::reduce(thrust::device, dev_ptr, dev_ptr + std::pow(4,KMER),0);
 
+    // calculate the prefix
+    thrust::exclusive_scan(thrust::device, dev_ptr, dev_ptr + std::pow(4,KMER), d_read_prefix);
+
+    // an array that will contain the actual reads sorted by KMER
     int *d_read_chunk; cudaMalloc(&d_read_chunk, read_counts_sum * sizeof(int));// create index table with the length of the sum of read_counts
     int *read_chunk = (int*) malloc(read_counts_sum * sizeof(int));
+
+    // an array that will contain the IndexTable instances that for each KMER contains an index to the first read in read chunk and the amount of reads
     IndexTable *d_index_table; cudaMalloc(&d_index_table, std::pow(4,KMER) * sizeof(IndexTable));cudaMemset(d_index_table, 0, std::pow(4,KMER) * sizeof(IndexTable));
     IndexTable *index_table = (IndexTable*) malloc(std::pow(4,KMER) * sizeof(IndexTable));
     int *d_tmp_read_counts; cudaMalloc(&d_tmp_read_counts, std::pow(4,KMER) * sizeof(int)); cudaMemset(d_tmp_read_counts, 0, std::pow(4,KMER) * sizeof(int));
 
+    // calculate index table
     computeIndexTable<<<num_reads/THREADS_PER_BLOCK,THREADS_PER_BLOCK>>>(d_reads, d_read_counts, d_tmp_read_counts, d_read_chunk, d_read_prefix, d_index_table, d_num_reads);
+
+    // delete no longer used arrays
     cudaFree(d_read_counts);
     cudaFree(d_tmp_read_counts);
 
     size_t results_length = num_reads * K_CLOSEST;
-    // will be a list of the minimum edit distance for each read
+
+    // initialize an array of the minimum edit distance for each read
     int *min_num = (int*) malloc(results_length * sizeof(int));
     int *d_min_num; cudaMalloc(&d_min_num, results_length * sizeof(int));
 
-    // will be a list of the index of the minimum edit distance for each read
+    // initialize an array of the index of the minimum edit distance for each read
     int *min_index = (int*) malloc(results_length * sizeof(int));
     int *d_min_index; cudaMalloc(&d_min_index, results_length * sizeof(int));
 
+    // for each read finds the K(N) closest read and its distance
     findClosest<<<num_reads,THREADS_PER_BLOCK>>>(d_reads,d_min_num, d_min_index, d_histograms,d_index_table,d_read_chunk);
 
+    // copy results to CPU memory
     cudaMemcpy(min_num, d_min_num, results_length * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(min_index, d_min_index, results_length * sizeof(int), cudaMemcpyDeviceToHost);
+
+    // print info
     std::cout<< "settings: " << K_CLOSEST << "," << ETH << "," <<KMER << std::endl;
+
+    // print results
     std::cout << "read index" << ","<< "closest read" << ","<< "edit distance" << std::endl;
     for(int i = 0; i < num_reads; i++){
         std::cout << i << ", [";
