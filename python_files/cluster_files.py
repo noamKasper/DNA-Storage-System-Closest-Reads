@@ -1,8 +1,13 @@
 import os
+import json
 
-RAW_CLUSTERS_DIR = "/home/noam/alphaProject/reads/raw_files"
-PADDED_CLUSTERS_DIR = "/home/noam/alphaProject/reads/padded_clusters"
-PREPARED_READS_DIR = "/home/noam/alphaProject/reads/prepared_reads"
+with open("../paths.json", "r") as f:
+    paths = json.load(f)
+
+DATASETS = paths["dataset directories"]
+RAW_DATASETS = DATASETS["raw"]
+PADDED_DATASETS = DATASETS["padded"]
+PREPARED_DATASETS = DATASETS["prepared"]
 
 
 def get_files(path) -> dict:

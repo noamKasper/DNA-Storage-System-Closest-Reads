@@ -1,16 +1,21 @@
 from code_compiler import Compiler, run_program_and_save_output, GPU_OPT_PATH, EXECUTABLE_PATH
-from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, get_files
+from cluster_files import ClusterFile, RAW_DATASETS, get_files
 import os
 
-K_RESULT_PATH = "/home/noam/alphaProject/results/kresults"
+with open("../paths.json", "r") as f:
+    paths = json.load(f)
+
+RESULTS = paths["results"]
+
+K_RESULT_PATH = RESULTS["k"]
 K_RANGE = range(9, 16)
 K_DEFAULT = 12
 
-ETH_RESULT_PATH = "/home/noam/alphaProject/results/ethresults"
+ETH_RESULT_PATH = RESULTS["eth"]
 ETH_RANGE = range(3, 20)
 ETH_DEFAULT = 10
 
-COMBINED_RESULTS = "/home/noam/alphaProject/results/combined_dir_results"
+COMBINED_RESULTS = RESULTS["combined"]
 COMBINED_K_RANGE = range(10, 15, 2)
 COMBINED_ETH_RANGE = range(6, 13, 2)
 

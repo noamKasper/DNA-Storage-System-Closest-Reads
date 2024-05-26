@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.ticker import FuncFormatter
 from sensitivity_testing import K_RESULT_PATH, ETH_RESULT_PATH, DIVIDE_BY
-from cluster_files import ClusterFile
-from results_files import ResultFile, RAW_CLUSTERS_DIR
+from cluster_files import ClusterFile, RAW_DATASETS
+from results_files import ResultFile
 
+with open("../paths.json", "r") as f:
+    paths = json.load(f)
 
-SENSITIVITY_FIG_FOLDER = "/home/noam/alphaProject/figs/sensitivity"
+SENSITIVITY_FIG_FOLDER = paths["figs"]["sensitivity"]
 
 pd.set_option('display.float_format', '{:.20f}'.format)
 

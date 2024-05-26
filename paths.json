@@ -1,0 +1,27 @@
+{
+   "dataset directories":{
+      "raw":"../datasets/raw_datasets",
+      "padded":"../datasets/padded_datasets",
+      "prepared":"../datasets/prepared_datasets"
+   },
+   "algorithms":{
+      "n reads gpu opt":"../algorithms/n_reads_gpu_opt.cu",
+      "gpu opt":"../algorithms/gpu_opt.cu",
+      "gpu unopt":"../algorithms/gpu_unopt.cu",
+      "cpu unopt":"../algorithms/cpu_unopt.cpp",
+      "executable":"../algorithms/program"
+   },
+   "figs":{
+      "n closest":"../figs/n_closest",
+      "sensitivity":"../figs/sensitivity",
+      "performance":"../figs/performance_comp"
+   },
+   "results":{
+      "n closest":"../results/n_closest_results",
+      "n closest post":"../results/n_closest_results/post_processing",
+      "performance":"../results/performance_comparison_results",
+      "k":"../results/kresults",
+      "eth":"../results/ethresults",
+      "combined":"..results/combined_dir_results"
+   }
+}

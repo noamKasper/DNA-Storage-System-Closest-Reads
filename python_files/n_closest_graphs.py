@@ -4,7 +4,11 @@ import matplotlib.pyplot as plt
 from brokenaxes import brokenaxes
 from n_closest_post import POST_PROCESSING_FULL_RESULTS_PATH
 
-N_CLOSEST_FIG_FOLDER = "/home/noam/alphaProject/figs/n_closest"
+with open("../paths.json", "r") as f:
+    paths = json.load(f)
+
+FIGS = paths["figs"]
+N_CLOSEST_FIG_FOLDER = FIGS["n closest"]
 
 
 def improved_stack_plot(df: pd.DataFrame, path, ascending=True, text_size=12, text_size_amp=2):

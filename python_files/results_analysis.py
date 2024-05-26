@@ -1,5 +1,5 @@
 import pandas as pd
-from results_files import ResultFile, RAW_CLUSTERS_DIR
+from results_files import ResultFile, RAW_DATASETS
 from cluster_files import ClusterFile
 import seaborn as sns
 import matplotlib.pyplot as plt

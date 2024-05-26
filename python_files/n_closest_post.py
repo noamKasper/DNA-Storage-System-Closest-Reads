@@ -3,9 +3,12 @@ import pandas as pd
 
 from results_files import NResultsFile
 from n_closest_testing import N_CLOSEST_RESULTS_PATH
-from cluster_files import ClusterFile, get_files, RAW_CLUSTERS_DIR
+from cluster_files import ClusterFile, get_files, RAW_DATASETS
 
-POST_PROCESSING_PATH = "/home/noam/alphaProject/results/n_closest_results/post_processing"
+with open("../paths.json", "r") as f:
+    paths = json.load(f)
+
+POST_PROCESSING_PATH = paths["results"]["n closest post"]
 POST_PROCESSING_FULL_RESULTS_PATH = os.path.join(POST_PROCESSING_PATH, "full_results.csv")
 
 

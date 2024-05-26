@@ -3,11 +3,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from cluster_files import get_files, RAW_CLUSTERS_DIR
+from cluster_files import get_files, RAW_DATASETS
 from results_files import ResultFile
 from performance_comp_testing import PERFORMANCE_RESULTS_PATH
 
-PERFORMANCE_GRAPHS_PATH = "/home/noam/alphaProject/figs/performance_comp"
+with open("../paths.json", "r") as f:
+    paths = json.load(f)
+
+PERFORMANCE_GRAPHS_PATH = paths["figs"]["performance"]
 
 
 def inaccuracy_plot(df, path, size=(10, 6), fontsize=12, fontsize_amp=2):

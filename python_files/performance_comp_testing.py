@@ -1,11 +1,14 @@
 from code_compiler import Compiler, run_program_and_save_output, GPU_OPT_PATH, GPU_UNOPT_PATH, CPU_UNOPT_PATH, EXECUTABLE_PATH
-from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, get_files
+from cluster_files import ClusterFile, RAW_DATASETS, get_files
 import os
+
+with open("../paths.json", "r") as f:
+    paths = json.load(f)
 
 K = 12
 ETH = 10
 DIVIDE_BY = 1000
-PERFORMANCE_RESULTS_PATH = '/home/noam/alphaProject/results/performance_comparison_results'
+PERFORMANCE_RESULTS_PATH = paths["results"]["performance"]
 RUNNING_TIME = 900  # in seconds
 
 

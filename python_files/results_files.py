@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, PADDED_CLUSTERS_DIR, PREPARED_READS_DIR
+from cluster_files import ClusterFile, RAW_DATASETS, PADDED_DATASETS, PREPARED_DATASETS
 import seaborn as sns
 
 

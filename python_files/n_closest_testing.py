@@ -1,8 +1,11 @@
 from code_compiler import Compiler, run_program_and_save_output, N_READS_GPU_OPT_PATH, EXECUTABLE_PATH
-from cluster_files import ClusterFile, RAW_CLUSTERS_DIR, get_files
+from cluster_files import ClusterFile, RAW_DATASETS, get_files
 import os
 
-N_CLOSEST_RESULTS_PATH = "/home/noam/alphaProject/results/n_closest_results"
+with open("../paths.json", "r") as f:
+    paths = json.load(f)
+
+N_CLOSEST_RESULTS_PATH = paths["results"]["n closest"]
 
 
 def n_sensitivity_testing(path_, n_range: iter = range(1, 10)):
