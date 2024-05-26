@@ -27,3 +27,5 @@ The repository is organized as such:
   - `gpu_unopt.cu`: this file contains the naive(unoptimized) closest read algorithm written in parallel using `CUDA`.
   - `cpu_unopt.cpp`: this file contains the naive(unoptimized) closest read algorithm written with `C++`.
 - `python_files`: this directory contains files written in python that are used for preparing the data, analysing results and creating figures.
+
+If you wish to use your own paths with the python files you can change the default ones at `paths.json`.
